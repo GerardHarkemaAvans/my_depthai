@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: roboflowoak
+Version: 0.0.8
+Summary: python client for deploying Roboflow models to OAK devices
+Home-page: https://www.roboflow.com
+Author: Roboflow
+Author-email: jacob@roboflow.com
+License: GPLv3+
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+https://docs.roboflow.com/inference/luxonis-oak
+

@@ -1,0 +1,9 @@
+<!-- Launches rvze-->
+
+<launch>
+
+
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_depthai)/rviz/stereo_inertial_node_config.rviz"/>
+
+
+</launch>
