@@ -1,6 +1,8 @@
 
 #include <camera_info_manager/camera_info_manager.h>
 #include <depthai_ros_msgs/SpatialDetectionArray.h>
+#include <depthai_ros_msgs/SpatialDetection.h>
+#include <vision_msgs/ObjectHypothesis.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
@@ -154,10 +156,10 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableDepth,
         camRgb->isp.link(xoutRgb->input);
 
         // std::cout << (rgbWidth % 2 == 0 && rgbHeight % 3 == 0) << std::endl;
-        // assert(("Needs Width to be multiple of 2 and height to be multiple of 3 since the Image is NV12 format here.", (rgbWidth % 2 == 0 && rgbHeight % 3 == 0)));
+        // assert(("Needs image_width to be multiple of 2 and image_height to be multiple of 3 since the Image is NV12 format here.", (rgbWidth % 2 == 0 && rgbHeight % 3 == 0)));
         if(rgbWidth  % 16 != 0) {
             if(rgbResolution == dai::node::ColorCamera::Properties::SensorResolution::THE_12_MP) {
-                ROS_ERROR_STREAM("RGB Camera width should be multiple of 16. Please choose a different scaling factor."
+                ROS_ERROR_STREAM("RGB Camera image_width should be multiple of 16. Please choose a different scaling factor."
                                  << std::endl
                                  << "Here are the scalng options that works for 12MP with depth aligned" << std::endl
                                  << "4056 x 3040 *  2/13 -->  624 x  468" << std::endl
@@ -188,7 +190,7 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableDepth,
                                  << "4056 x 3040 * 16/52 --> 1248 x  936" << std::endl);
 
             } else {
-                ROS_ERROR_STREAM("RGB Camera width should be multiple of 16. Please choose a different scaling factor.");
+                ROS_ERROR_STREAM("RGB Camera image_width should be multiple of 16. Please choose a different scaling factor.");
             }
             throw std::runtime_error("Adjust RGB Camaera scaling.");
         }
@@ -295,7 +297,12 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableDepth,
 }
 
 
-void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::string topic_name);
+void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
+                   std::string topic_name,
+                   float scale_x,
+                   float scale_y,
+                   std::vector<std::string> class_names,
+                   float conf_thres);
 
 bool AbortDetectionTask = false;
 
@@ -385,6 +392,10 @@ int main(int argc, char** argv) {
 
     dai::ros::ImuSyncMethod imuMode = static_cast<dai::ros::ImuSyncMethod>(imuModeParam);
 
+
+    int nn_width, nn_height;
+    std::vector<std::string> class_names;
+
     {
         std::ifstream file(nnConfigPath);
         // json reader
@@ -401,8 +412,9 @@ int main(int argc, char** argv) {
         // get the value associated with grade key
         //cout << “Grade: “ << completeJsonData[“grade”] << endl;
 
-        int size_x = std::stoi(completeJsonData["environment"]["RESOLUTION"].asString());
-        std::cout << "size_x :" << size_x << std::endl;
+        nn_width = std::stoi(completeJsonData["environment"]["RESOLUTION"].asString());
+        nn_height = nn_width;
+        std::cout << "nn_width :" << nn_width << std::endl;
 
         //const std::vector<std::string> classes = completeJsonData["class_names"];
         const Json::Value classes = completeJsonData["class_names"];
@@ -410,7 +422,6 @@ int main(int argc, char** argv) {
 
         std::cout << completeJsonData["class_names"] << std::endl;
 
-        std::vector<std::string> class_names;
 
         //classes = completeJsonData.get<std::vector<std:string>>().
         for(int i = 0; i < classes.size(); i++){
@@ -423,9 +434,9 @@ int main(int argc, char** argv) {
 
 
     dai::Pipeline pipeline;
-    int width, height;
+    int image_width, image_height;
     bool isDeviceFound = false;
-    std::tie(pipeline, width, height) = createPipeline(enableDepth,
+    std::tie(pipeline, image_width, image_height) = createPipeline(enableDepth,
                                                         enableSpatialDetection,
                                                         lrcheck,
                                                         extended,
@@ -501,9 +512,9 @@ int main(int argc, char** argv) {
     auto calibrationHandler = device->readCalibration();
 
     auto boardName = calibrationHandler.getEepromData().boardName;
-    if(height > 480 && boardName == "OAK-D-LITE" && depth_aligned == false) {
-        width = 640;
-        height = 480;
+    if(image_height > 480 && boardName == "OAK-D-LITE" && depth_aligned == false) {
+        image_width = 640;
+        image_height = 480;
     }
     std::vector<std::tuple<std::string, int, int>> irDrivers = device->getIrDrivers();
     if(!irDrivers.empty()) {
@@ -535,7 +546,7 @@ int main(int argc, char** argv) {
     imuPublish.addPublisherCallback();
     /*
     int colorWidth = 1280, colorHeight = 720;
-    if(height < 720) {
+    if(image_height < 720) {
         colorWidth = 640;
         colorHeight = 360;
     }
@@ -543,10 +554,10 @@ int main(int argc, char** argv) {
 
     dai::rosBridge::ImageConverter rgbConverter(tfPrefix + "_rgb_camera_optical_frame", false);
     if(enableDepth) {
-        auto rightCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RIGHT, width, height);
+        auto rightCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RIGHT, image_width, image_height);
 
         auto depthCameraInfo =
-            depth_aligned ? rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, width, height) : rightCameraInfo;
+            depth_aligned ? rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, image_width, image_height) : rightCameraInfo;
 
         auto depthconverter = depth_aligned ? rgbConverter : rightconverter;
         dai::rosBridge::BridgePublisher<sensor_msgs::Image, dai::ImgFrame> depthPublish(
@@ -564,7 +575,7 @@ int main(int argc, char** argv) {
         depthPublish.addPublisherCallback();
 
         if(depth_aligned) {
-            auto rgbCameraInfo = rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, width, height);
+            auto rgbCameraInfo = rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, image_width, image_height);
             auto imgQueue = device->getOutputQueue("rgb", 30, false);
             dai::rosBridge::BridgePublisher<sensor_msgs::Image, dai::ImgFrame> rgbPublish(
                 imgQueue,
@@ -614,7 +625,13 @@ int main(int argc, char** argv) {
 
                 detectionPublish.addPublisherCallback();
 #endif
-                std::thread detection_task(DetectionTask, device->getOutputQueue("detections", 30, false), tfPrefix + "_rgb_camera_optical_frame" + "/color/detections");
+                std::thread detection_task(DetectionTask,
+                                           device->getOutputQueue("detections", 30, false),
+                                           tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
+                                           image_width / nn_width,
+                                           image_height / nn_height,
+                                           class_names,
+                                           confidence);
 #endif
                 ros::spin();
                 AbortDetectionTask = true;
@@ -625,8 +642,8 @@ int main(int argc, char** argv) {
 
             ros::spin();
         } else {
-            auto leftCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::LEFT, width, height);
-            auto rightCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RIGHT, width, height);
+            auto leftCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::LEFT, image_width, image_height);
+            auto rightCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RIGHT, image_width, image_height);
 
             auto leftQueue = device->getOutputQueue("left", 30, false);
             auto rightQueue = device->getOutputQueue("right", 30, false);
@@ -654,9 +671,9 @@ int main(int argc, char** argv) {
         std::string tfSuffix = depth_aligned ? "_rgb_camera_optical_frame" : "_right_camera_optical_frame";
         dai::rosBridge::DisparityConverter dispConverter(tfPrefix + tfSuffix, 880, 7.5, 20, 2000);  // TODO(sachin): undo hardcoding of baseline
 
-        auto rightCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RIGHT, width, height);
+        auto rightCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RIGHT, image_width, image_height);
         auto disparityCameraInfo =
-            depth_aligned ? rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, width, height) : rightCameraInfo;
+            depth_aligned ? rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, image_width, image_height) : rightCameraInfo;
         auto depthconverter = depth_aligned ? rgbConverter : rightconverter;
         dai::rosBridge::BridgePublisher<stereo_msgs::DisparityImage, dai::ImgFrame> dispPublish(
             stereoQueue,
@@ -669,7 +686,7 @@ int main(int argc, char** argv) {
         dispPublish.addPublisherCallback();
 
         if(depth_aligned) {
-            auto rgbCameraInfo = rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, width, height);
+            auto rgbCameraInfo = rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, image_width, image_height);
             auto imgQueue = device->getOutputQueue("rgb", 30, false);
             dai::rosBridge::ImageConverter rgbConverter(tfPrefix + "_rgb_camera_optical_frame", false);
             dai::rosBridge::BridgePublisher<sensor_msgs::Image, dai::ImgFrame> rgbPublish(
@@ -719,7 +736,13 @@ int main(int argc, char** argv) {
                 detectionPublish.addPublisherCallback();
 #endif
 
-                std::thread detection_task(DetectionTask, device->getOutputQueue("detections", 30, false), tfPrefix + "_rgb_camera_optical_frame" + "/color/detections");
+                std::thread detection_task(DetectionTask,
+                                           device->getOutputQueue("detections", 30, false),
+                                           tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
+                                           image_width / nn_width,
+                                           image_height / nn_height,
+                                           class_names,
+                                           confidence);
 
 
 #endif
@@ -732,8 +755,8 @@ int main(int argc, char** argv) {
 
             ros::spin();
         } else {
-            auto leftCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::LEFT, width, height);
-            auto rightCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RIGHT, width, height);
+            auto leftCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::LEFT, image_width, image_height);
+            auto rightCameraInfo = converter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RIGHT, image_width, image_height);
 
             auto leftQueue = device->getOutputQueue("left", 30, false);
             auto rightQueue = device->getOutputQueue("right", 30, false);
@@ -766,8 +789,8 @@ int main(int argc, char** argv) {
 typedef struct{
   float x;
   float y;
-  float width;
-  float height;
+  float image_width;
+  float image_height;
   float depth;
   char *confidence;
   char *class_name;
@@ -776,10 +799,11 @@ typedef struct{
 //#include <depthai_ros_msgs/SpatialDetectionArray.h>
 #include <iostream>
 #include "ros/ros.h"
-void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::string topic_name)
+void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::string topic_name, float scale_x, float scale_y,  std::vector<std::string> class_names, float conf_thres)
 {
     int cnt = 0;
     int messageCounter = 0;
+    int seq_number = 0;
 
     //auto detectionQueue = device->getOutputQueue("detections", 30, false);
 
@@ -844,7 +868,7 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
       }
       std::cout << std::endl;
 #endif
-      int number_of_classes = 3;
+      int number_of_classes = class_names.size();
 
       auto in_nn_layer = daiDataPtr->getLayerFp16("output");
       int num_anchor_boxes = in_nn_layer.size() / (number_of_classes + 5);
@@ -882,11 +906,17 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
 #endif
           std::vector<float> np_box_corner;
           np_box_corner.resize(6);
-
+#if 0
           np_box_corner[0] = tensors[i][0] - tensors[i][2] / 2;
           np_box_corner[1] = tensors[i][1] - tensors[i][3] / 2;
           np_box_corner[2] = tensors[i][0] + tensors[i][2] / 2;
           np_box_corner[3] = tensors[i][1] + tensors[i][3] / 2;
+#endif
+          np_box_corner[0] = tensors[i][0] * scale_x;
+          np_box_corner[1] = tensors[i][1] * scale_y;
+          np_box_corner[2] = tensors[i][2] * scale_x;
+          np_box_corner[3] = tensors[i][3] * scale_y;
+
           int class_number = 0;
           float max_conf = tensors[i][5];
           for(int j = 0; j < number_of_classes; j++){
@@ -917,31 +947,40 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
         for(corner = box->begin(); corner != box->end(); corner++){
           std::cout << *corner << ", ";
         }
+        corner = box->begin() + 5;
+        std::cout << class_names[static_cast<int>(*corner)];
         std::cout << std::endl;
       }
+
+      {
+        depthai_ros_msgs::SpatialDetectionArray detection_array;
+        detection_array.header.seq=seq_number++;
+        detection_array.header.stamp = ros::Time::now();
+
+        depthai_ros_msgs::SpatialDetection detection;
+        vision_msgs::ObjectHypothesis object_hypothesis;
+        for(box = boxes.begin(); box != boxes.end(); box++){
+          detection.results.clear();
+          corner = box->begin();
+          detection.bbox.center.x = *(corner + 0);
+          detection.bbox.center.y = *(corner + 1);
+          detection.bbox.center.theta = 0;
+          detection.bbox.size_x = *(corner + 2);
+          detection.bbox.size_y = *(corner + 3);
+
+
+          object_hypothesis.id = static_cast<int>(*(corner+5));
+          object_hypothesis.score = *(corner + 4);
+          detection.results.push_back(object_hypothesis);
+          detection_array.detections.push_back(detection);
+
+        }
+
+        dectection_publisher.publish(detection_array);
+
+      }
+
 
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
-/*
-class Prediction:
-    def __init__(self, x, y, width, height, confidence, class_name, depth=None):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.depth = depth
-        self.confidence = confidence
-        self.class_name = class_name
-
-    def json(self):
-        return {
-            "x": self.x,
-            "y": self.y,
-            "width": self.width,
-            "height": self.height,
-            "depth": self.depth,
-            "confidence": self.confidence,
-            "class": self.class_name
-        }
-*/
