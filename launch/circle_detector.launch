@@ -28,15 +28,13 @@
     <arg name="expTime"               default="20000"/>
     <arg name="sensIso"               default="800" />
 
-    <arg name="enableSpatialDetection" default="true" />
+    <arg name="enableSpatialDetection" default="false" />
     <arg name="syncNN"                 default="true" />
     <arg name="detectionClassesCount"  default="3"   />
     <arg name="nnName"                 default="simplefruits_V1.blob"         />
     <arg name="nnConfig"               default="simplefruits_V1.txt"         />
     <arg name="resourceBaseFolder"     default="$(find my_depthai)/resources" />
 
-
-    <!-- <arg name="nnPath"                 default="" /> -->
 
      <!-- see https://docs.luxonis.com/projects/api/en/latest/components/nodes/stereo_depth/#currently-configurable-blocks for possible combination of optionf for higher fps-->
     <arg name="stereo_fps"            default="15"  />

@@ -804,6 +804,7 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
     int cnt = 0;
     int messageCounter = 0;
     int seq_number = 0;
+    bool display_info = true;
 
     //auto detectionQueue = device->getOutputQueue("detections", 30, false);
 
@@ -827,159 +828,168 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
           messageCounter = 0;
       }
 
-      else std::cout << "message received" << std::endl;
-
-      //daiDataPtr.getLayerFp16('output');
-
-
-      //DETECTION *detection;
-      //detection = (DETECTION *)daiDataPtr->getRaw();
-      //detection = *daiDataPtr;
-      //std::cout << daiDataPtr->getRaw() << std::endl;
-
-      //std::cout << detection->class_name << std::endl;
-      //dectection_publisher.publish(msg);
-
-
-      std::cout << "Layer names: ";
-      for(auto val : daiDataPtr->getAllLayerNames()) {
-          std::cout << val << ", ";
-      }
-      std::cout << std::endl;
-
-      auto rimestamp = daiDataPtr->getTimestamp();
-      auto devive_timestamp = daiDataPtr->getTimestampDevice();
-
-#if 0
-      std::cout << "NNData size: " << daiDataPtr->getData().size() << std::endl;
-      std::cout << "FP16 values: ";
-      for(auto val : daiDataPtr->getLayerFp16("output")) {
-          //std::cout << std::to_string(val) << "x ";
-      }
-      std::cout << std::endl;
-#endif
-
-      //auto val = daiDataPtr->getLayerFp16("auto");
-      //std::cout << val << std::endl;
-#if 0
-      std::cout << "UINT8 values: ";
-      for(auto val : daiDataPtr->getLayerUInt8("uint8")) {
-          std::cout << std::to_string(val) << "x ";
-      }
-      std::cout << std::endl;
-#endif
-      int number_of_classes = class_names.size();
-
-      auto in_nn_layer = daiDataPtr->getLayerFp16("output");
-      int num_anchor_boxes = in_nn_layer.size() / (number_of_classes + 5);
-      std::cout << "Number of anchor boxes: " << num_anchor_boxes << std::endl;
-
-      int in_nn_layer_size = in_nn_layer.size();
-
-      std::vector<std::vector<float>> tensors;
-      tensors.resize(num_anchor_boxes);
-      for (int i = 0; i < num_anchor_boxes; i++)
+      else
       {
-          tensors[i].resize(number_of_classes + 5);
-      }
-
-
-
-      for (int i = 0; i < in_nn_layer_size; i++)
-      {
-          int row = i / (number_of_classes + 5);
-          int col = i % (number_of_classes + 5);
-          tensors[row][col] = in_nn_layer[i];
-      }
-
-      float conf_thres = 0.5;
-
-      std::vector<std::vector<float>> boxes;
-
-      for(int i = 0; i < num_anchor_boxes; i++){
-        if(tensors[i][4] >= conf_thres){
 #if 0
-          for(int j = 0; j < (number_of_classes + 5); j++){
-            std::cout << tensors[i][j] << ", ";
+        std::cout << "message received" << std::endl;
+#endif
+        //daiDataPtr.getLayerFp16('output');
+
+
+        //DETECTION *detection;
+        //detection = (DETECTION *)daiDataPtr->getRaw();
+        //detection = *daiDataPtr;
+        //std::cout << daiDataPtr->getRaw() << std::endl;
+
+        //std::cout << detection->class_name << std::endl;
+        //dectection_publisher.publish(msg);
+
+        if(display_info){
+
+              std::cout << "Layer names: ";
+              for(auto val : daiDataPtr->getAllLayerNames()) {
+                  std::cout << val << ", ";
+              }
+              std::cout << std::endl;
+
+              auto rimestamp = daiDataPtr->getTimestamp();
+              auto devive_timestamp = daiDataPtr->getTimestampDevice();
+
+        #if 1
+              std::cout << "NNData size: " << daiDataPtr->getData().size() << std::endl;
+              std::cout << "FP16 values: ";
+              for(auto val : daiDataPtr->getLayerFp16("output")) {
+                  //std::cout << std::to_string(val) << "x ";
+              }
+              std::cout << std::endl;
+        #endif
+
+              //auto val = daiDataPtr->getLayerFp16("auto");
+              //std::cout << val << std::endl;
+        #if 0
+              std::cout << "UINT8 values: ";
+              for(auto val : daiDataPtr->getLayerUInt8("uint8")) {
+                  std::cout << std::to_string(val) << "x ";
+              }
+              std::cout << std::endl;
+        #endif
+          display_info = false;
+        }
+        int number_of_classes = class_names.size();
+
+        auto in_nn_layer = daiDataPtr->getLayerFp16("output");
+        int num_anchor_boxes = in_nn_layer.size() / (number_of_classes + 5);
+
+  #if 0
+        std::cout << "Number of anchor boxes: " << num_anchor_boxes << std::endl;
+  #endif
+        int in_nn_layer_size = in_nn_layer.size();
+
+        std::vector<std::vector<float>> tensors;
+        tensors.resize(num_anchor_boxes);
+        for (int i = 0; i < num_anchor_boxes; i++)
+        {
+            tensors[i].resize(number_of_classes + 5);
+        }
+
+
+
+        for (int i = 0; i < in_nn_layer_size; i++)
+        {
+            int row = i / (number_of_classes + 5);
+            int col = i % (number_of_classes + 5);
+            tensors[row][col] = in_nn_layer[i];
+        }
+
+        float conf_thres = 0.5;
+
+        std::vector<std::vector<float>> boxes;
+
+        for(int i = 0; i < num_anchor_boxes; i++){
+          if(tensors[i][4] >= conf_thres){
+  #if 0
+            for(int j = 0; j < (number_of_classes + 5); j++){
+              std::cout << tensors[i][j] << ", ";
+            }
+            std::cout << std::endl;
+  #endif
+            std::vector<float> np_box_corner;
+            np_box_corner.resize(6);
+  #if 0
+            np_box_corner[0] = tensors[i][0] - tensors[i][2] / 2;
+            np_box_corner[1] = tensors[i][1] - tensors[i][3] / 2;
+            np_box_corner[2] = tensors[i][0] + tensors[i][2] / 2;
+            np_box_corner[3] = tensors[i][1] + tensors[i][3] / 2;
+  #endif
+            np_box_corner[0] = tensors[i][0] * scale_x;
+            np_box_corner[1] = tensors[i][1] * scale_y;
+            np_box_corner[2] = tensors[i][2] * scale_x;
+            np_box_corner[3] = tensors[i][3] * scale_y;
+
+            int class_number = 0;
+            float max_conf = tensors[i][5];
+            for(int j = 0; j < number_of_classes; j++){
+              if(tensors[i][5+j] > max_conf){
+                max_conf = tensors[i][5+j];
+                class_number = j;
+              }
+            }
+            np_box_corner[4] = tensors[i][4];
+            np_box_corner[5] = (float)class_number;
+
+            boxes.push_back(np_box_corner);
+          }
+        }
+
+  #if 0
+
+        for(int i = 0; i < boxes.size(); i++){
+          for(int j = 0; j < boxes[i].size(); j++){
+            std::cout << boxes[i][j] << ", ";
           }
           std::cout << std::endl;
-#endif
-          std::vector<float> np_box_corner;
-          np_box_corner.resize(6);
-#if 0
-          np_box_corner[0] = tensors[i][0] - tensors[i][2] / 2;
-          np_box_corner[1] = tensors[i][1] - tensors[i][3] / 2;
-          np_box_corner[2] = tensors[i][0] + tensors[i][2] / 2;
-          np_box_corner[3] = tensors[i][1] + tensors[i][3] / 2;
-#endif
-          np_box_corner[0] = tensors[i][0] * scale_x;
-          np_box_corner[1] = tensors[i][1] * scale_y;
-          np_box_corner[2] = tensors[i][2] * scale_x;
-          np_box_corner[3] = tensors[i][3] * scale_y;
-
-          int class_number = 0;
-          float max_conf = tensors[i][5];
-          for(int j = 0; j < number_of_classes; j++){
-            if(tensors[i][5+j] > max_conf){
-              max_conf = tensors[i][5+j];
-              class_number = j;
-            }
-          }
-          np_box_corner[4] = tensors[i][4];
-          np_box_corner[5] = (float)class_number;
-
-          boxes.push_back(np_box_corner);
         }
-      }
-
-#if 0
-
-      for(int i = 0; i < boxes.size(); i++){
-        for(int j = 0; j < boxes[i].size(); j++){
-          std::cout << boxes[i][j] << ", ";
-        }
-        std::cout << std::endl;
-      }
-#endif
-      std::vector<std::vector<float>>::iterator box;
-      std::vector<float>::iterator corner;
-      for(box = boxes.begin(); box != boxes.end(); box++){
-        for(corner = box->begin(); corner != box->end(); corner++){
-          std::cout << *corner << ", ";
-        }
-        corner = box->begin() + 5;
-        std::cout << class_names[static_cast<int>(*corner)];
-        std::cout << std::endl;
-      }
-
-      {
-        depthai_ros_msgs::SpatialDetectionArray detection_array;
-        detection_array.header.seq=seq_number++;
-        detection_array.header.stamp = ros::Time::now();
-
-        depthai_ros_msgs::SpatialDetection detection;
-        vision_msgs::ObjectHypothesis object_hypothesis;
+  #endif
+        std::vector<std::vector<float>>::iterator box;
+        std::vector<float>::iterator corner;
+  #if 0
         for(box = boxes.begin(); box != boxes.end(); box++){
-          detection.results.clear();
-          corner = box->begin();
-          detection.bbox.center.x = *(corner + 0);
-          detection.bbox.center.y = *(corner + 1);
-          detection.bbox.center.theta = 0;
-          detection.bbox.size_x = *(corner + 2);
-          detection.bbox.size_y = *(corner + 3);
+          for(corner = box->begin(); corner != box->end(); corner++){
+            std::cout << *corner << ", ";
+          }
+          corner = box->begin() + 5;
+          std::cout << class_names[static_cast<int>(*corner)];
+          std::cout << std::endl;
+        }
+  #endif
+        {
+          depthai_ros_msgs::SpatialDetectionArray detection_array;
+          detection_array.header.seq=seq_number++;
+          detection_array.header.stamp = ros::Time::now();
+
+          depthai_ros_msgs::SpatialDetection detection;
+          vision_msgs::ObjectHypothesis object_hypothesis;
+          for(box = boxes.begin(); box != boxes.end(); box++){
+            detection.results.clear();
+            corner = box->begin();
+            detection.bbox.center.x = *(corner + 0);
+            detection.bbox.center.y = *(corner + 1);
+            detection.bbox.center.theta = 0;
+            detection.bbox.size_x = *(corner + 2);
+            detection.bbox.size_y = *(corner + 3);
 
 
-          object_hypothesis.id = static_cast<int>(*(corner+5));
-          object_hypothesis.score = *(corner + 4);
-          detection.results.push_back(object_hypothesis);
-          detection_array.detections.push_back(detection);
+            object_hypothesis.id = static_cast<int>(*(corner+5));
+            object_hypothesis.score = *(corner + 4);
+            detection.results.push_back(object_hypothesis);
+            detection_array.detections.push_back(detection);
+
+          }
+
+          dectection_publisher.publish(detection_array);
 
         }
-
-        dectection_publisher.publish(detection_array);
-
-      }
-
+    }
 
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
