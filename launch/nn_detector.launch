@@ -35,7 +35,8 @@
     <arg name="nnConfig"               default="simplefruits_V1.txt"         />
     <arg name="resourceBaseFolder"     default="$(find my_depthai)/resources" />
     <arg name="confidenceThreshold"    default="0.5"/>
-
+    <arg name="overlapThreshold"       default="0.5"/>
+    <arg name="boxNeighbors"           default="1"/>
 
     <!-- <arg name="nnPath"                 default="" /> -->
 
@@ -102,6 +103,14 @@
         <param name="nnConfig"                 value="$(arg nnConfig)"/>
         <param name="resourceBaseFolder"       value="$(arg resourceBaseFolder)"/>
         <param name="confidenceThreshold"      value="$(arg confidenceThreshold)"/>
+        <param name="overlapThreshold"         value="$(arg overlapThreshold)"/>
+        <param name="boxNeighbors"                value="$(arg boxNeighbors)"/>
+
+
+        overlapThreshold
+
+
+        boxNeighbors
 
         <param name="stereo_fps"            value="$(arg stereo_fps)" />
         <param name="confidence"            value="$(arg confidence)" />

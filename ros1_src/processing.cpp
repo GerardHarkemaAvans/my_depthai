@@ -50,10 +50,17 @@ void AbortDetectionTask(){
 
 std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<float>> tensors, int num_anchor_boxes, int number_of_classes, float confidence_threshold, float scale_x, float scale_y);
 void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dectection_publisher, int seq_number);
-std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold);
+std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors);
 
-void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::string topic_name, float scale_x, float scale_y,  std::vector<std::string> class_names, float confidence_threshold)
+void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
+                    std::string topic_name,
+                    float scale_x, float scale_y,
+                    std::vector<std::string> class_names,
+                    float confidence_threshold,
+                    float overlap_threshold,
+                    int box_neighbors)
 {
+
     int cnt = 0;
     int messageCounter = 0;
     int seq_number = 0;
@@ -121,6 +128,7 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
                 tensors[row][col] = in_nn_layer[i];
             }
 
+
             std::vector<PREDECTION> predections;
 
             predections = filter_and_classificate_tensors(tensors,
@@ -132,14 +140,15 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
 
 
             std::vector<PREDECTION> suspressed_predections;
-            float overlap_threshold = 0.5;
-            suspressed_predections = nonMaximumSuppressionSimple(predections, overlap_threshold);
+
+            suspressed_predections = nonMaximumSuppressionSimple(predections, overlap_threshold, box_neighbors);
 
             publish_predections(suspressed_predections, dectection_publisher, seq_number++);
 
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(0));
     }
+
 }
 
 void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dectection_publisher, int seq_number){
@@ -231,7 +240,7 @@ std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<
   return predections;
 }
 
-std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold){
+std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors){
 
 
     std::vector<PREDECTION>::iterator predection;
@@ -239,7 +248,6 @@ std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input
     std::vector<cv::Rect> srcRects;
     std::vector<cv::Rect> resRects;
 
-    int neighbors = 1;
 
     for(predection = input_predections.begin(); predection != input_predections.end(); predection++){
         srcRects.push_back(predection->box);
@@ -290,7 +298,7 @@ std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input
                 ++pos;
             }
         }
-        if (neigborsCount >= neighbors){
+        if (neigborsCount >= box_neighbors){
             resRects.push_back(rect1);
             predections.push_back(predection);
         }

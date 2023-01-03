@@ -15,10 +15,6 @@ from depthai_ros_msgs.msg import SpatialDetectionArray
 import random as rng
 import json
 
-import shutil
-
-
-import ros_numpy
 
 
 class detection_displayer:
@@ -31,10 +27,14 @@ class detection_displayer:
         with open(config_file, 'r') as f:
             self.model_objects = json.loads(f.read())
             self.class_names = self.model_objects["class_names"]
-            self.colors = self.model_objects["colors"]
+            colors = self.model_objects["colors"]
+        self.colors = []
+        for color in colors:
+            self.colors.append(colors[color])
 
         rospy.loginfo(self.class_names)
         rospy.loginfo(self.colors)
+
 
         self.image_pub = rospy.Publisher("/image_out", Image, queue_size = 10)
 
@@ -46,34 +46,21 @@ class detection_displayer:
         self.image_received = False
 
     def detections_callback(self, detections_data):
-        #rospy.loginfo("PCL Callback")
-        #rospy.loginfo(detections_data)
+
         if self.image_received:
             for detection in detections_data.detections:
                 x1 = detection.bbox.center.x - (detection.bbox.size_x / 2)
                 y1 = detection.bbox.center.y - (detection.bbox.size_y / 2)
                 x2 = detection.bbox.center.x + (detection.bbox.size_x / 2)
                 y2 = detection.bbox.center.y + (detection.bbox.size_y / 2)
-                #class_color = (rng.randint(0,256), rng.randint(0,256), rng.randint(0,256))
 
-                #class_color = self.colors[detection[4]].strip("#")
-                #class_index = detection.results[0].id
-                #class_index = 0
-                #rospy.loginfo(class_index)
-                #test = self.colors[1]
-                #class_color = self.colors[int(class_index)].strip("#")
-                #rospy.loginfo(class_color)
-                #.strip("#")
-                #class_color = tuple(int(class_color[i:i + 2], 16) for i in (0, 2, 4))
-
-                class_colors = [(255,0,0) ,(0,255,0), (0,0,255)];
-                class_color = class_colors[detection.results[0].id]
+                class_index = detection.results[0].id
+                class_color = self.colors[int(class_index)].strip("#")
+                class_color = tuple(int(class_color[i:i + 2], 16) for i in (0, 2, 4))
 
                 cv2.rectangle(self.image, (int(x1), int(y1)), (int(x2), int(y2)), class_color, 2)
 
-
                 text = '%s: %.2f%%' % (self.class_names[detection.results[0].id], detection.results[0].score * 100)
-                #rospy.loginfo(text)
                 image = cv2.putText(self.image, text, (int(x1)+5, int(y2)-5), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)
 
             try:

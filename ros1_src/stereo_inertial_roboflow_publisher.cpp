@@ -268,13 +268,6 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableDepth,
 }
 
 
-void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
-                   std::string topic_name,
-                   float scale_x,
-                   float scale_y,
-                   std::vector<std::string> class_names,
-                   float confidence_threshold);
-
 
 
 int main(int argc, char** argv) {
@@ -291,6 +284,8 @@ int main(int argc, char** argv) {
     double angularVelCovariance, linearAccelCovariance;
     double dotProjectormA, floodLightmA;
     float confidenceThreshold = 0.5;
+    float overlapThreshold = 0.5;
+    int boxNeighbors = 1;
     std::string nnName(BLOB_NAME), nnConfig(BLOB_NAME);  // Set your blob name for the model here
 
     badParams += !pnh.getParam("mxId", mxId);
@@ -328,6 +323,8 @@ int main(int argc, char** argv) {
     badParams += !pnh.getParam("detectionClassesCount", detectionClassesCount);
     badParams += !pnh.getParam("syncNN", syncNN);
     badParams += !pnh.getParam("confidenceThreshold", confidenceThreshold);
+    badParams += !pnh.getParam("overlapThreshold", overlapThreshold);
+    badParams += !pnh.getParam("boxNeighbors", boxNeighbors);
 
     // Applies only to PRO model
     badParams += !pnh.getParam("enableDotProjector", enableDotProjector);
@@ -569,17 +566,19 @@ int main(int argc, char** argv) {
 
 
                 std::thread detection_task(DetectionTask,
-                                           device->getOutputQueue("detections", 30, false),
-                                           tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
-                                           (float)image_width / (float)nn_width,
-                                           (float)image_height / (float)nn_height,
-                                           class_names,
-                                           confidenceThreshold);
+                                            device->getOutputQueue("detections", 30, false),
+                                            tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
+                                            (float)image_width / (float)nn_width,
+                                            (float)image_height / (float)nn_height,
+                                            class_names,
+                                            confidenceThreshold,
+                                            overlapThreshold,
+                                            boxNeighbors);
 
                 ros::spin();
                 AbortDetectionTask();
 
-                detection_task.join();
+                //detection_task.join();
 
             }
 
@@ -659,17 +658,19 @@ int main(int argc, char** argv) {
 
 
                 std::thread detection_task(DetectionTask,
-                                           device->getOutputQueue("detections", 30, false),
-                                           tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
-                                           (float)image_width / (float)nn_width,
-                                           (float)image_height / (float)nn_height,
-                                           class_names,
-                                           confidenceThreshold);
+                                            device->getOutputQueue("detections", 30, false),
+                                            tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
+                                            (float)image_width / (float)nn_width,
+                                            (float)image_height / (float)nn_height,
+                                            class_names,
+                                            confidenceThreshold,
+                                            overlapThreshold,
+                                            boxNeighbors);
 
                 ros::spin();
                 AbortDetectionTask();
 
-                detection_task.join();
+                //detection_task.join();
             }
 
             ros::spin();
