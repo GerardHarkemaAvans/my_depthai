@@ -16,7 +16,7 @@
     <arg name="cam_pos_y"             default="0.0" /> <!-- Position respect to base frame (i.e. "base_link) -->
     <arg name="cam_pos_z"             default="0.5" /> <!-- Position respect to base frame (i.e. "base_link) -->
     <arg name="cam_roll"              default="0.0" /> <!-- Orientation respect to base frame (i.e. "base_link) -->
-    <arg name="cam_pitch"             default="1.57" /> <!-- Orientation respect to base frame (i.e. "base_link) -->
+    <arg name="cam_pitch"             default="0.0" /> <!-- Orientation respect to base frame (i.e. "base_link) -->
     <arg name="cam_yaw"               default="0.0" /> <!-- Orientation respect to base frame (i.e. "base_link) -->
 
     <arg name="lrcheck"               default="true" />
@@ -28,7 +28,7 @@
     <arg name="expTime"               default="20000"/>
     <arg name="sensIso"               default="800" />
 
-    <arg name="enableSpatialDetection" default="true" />
+    <arg name="enableNeuralNetworkDetection" default="true" />
     <arg name="syncNN"                 default="true" />
     <arg name="detectionClassesCount"  default="3"   />
     <arg name="nnName"                 default="simplefruits_V1.blob"         />
@@ -95,7 +95,7 @@
         <param name="expTime"               value="$(arg expTime)" />
         <param name="sensIso"               value="$(arg sensIso)" />
 
-        <param name="enableSpatialDetection"   value="$(arg enableSpatialDetection)" />
+        <param name="enableNeuralNetworkDetection"   value="$(arg enableNeuralNetworkDetection)" />
         <param name="syncNN"                   value="$(arg syncNN)" />
         <param name="detectionClassesCount"    value="$(arg detectionClassesCount)" />
         <param name="nnName"                   value="$(arg nnName)"/>
@@ -151,14 +151,8 @@
     </node>
 
 
-    <node if="$(eval arg('enableMarkerPublish') == true)" type="markerPublisher.py" name="markerPublisher" pkg="depthai_examples">
-        <remap from="spatialDetections" to="/stereo_inertial_roboflow_publisher/color/yolov4_Spatial_detections"/>
-        <remap from="spatialDetectionMarkers" to="/stereo_inertial_roboflow_publisher/color/spatialDetectionMarkers"/>
-    </node>
-
   <group if="$(eval arg('enableRviz') == true)">
     <node if="$(eval arg('depth_aligned') == true)" type="rviz" name="rviz" pkg="rviz" args="-d $(find my_depthai)/rviz/nn_detector.rviz" />
-    <node if="$(eval arg('depth_aligned') == false)" type="rviz" name="rviz" pkg="rviz" args="-d $(find my_depthai)/rviz/stereoInertialROS1_w_manipulator.rviz" />
   </group>
 
   <node  type="nn_detector_display.py" name="nnDetectorDisplay" pkg="my_depthai" output="screen">

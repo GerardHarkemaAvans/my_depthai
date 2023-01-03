@@ -298,5 +298,3 @@ def list_devices():
     for device in dai.Device.getAllAvailableDevices():
         available_devices.append(device.getMxId())
     return available_devices
-
-

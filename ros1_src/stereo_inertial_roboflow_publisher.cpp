@@ -1,7 +1,5 @@
 
 #include <camera_info_manager/camera_info_manager.h>
-#include <depthai_ros_msgs/SpatialDetectionArray.h>
-#include <depthai_ros_msgs/SpatialDetection.h>
 #include <vision_msgs/ObjectHypothesis.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -20,17 +18,19 @@
 #include <depthai_bridge/DisparityConverter.hpp>
 #include <depthai_bridge/ImageConverter.hpp>
 #include <depthai_bridge/ImuConverter.hpp>
-//#include <depthai_bridge/SpatialDetectionConverter.hpp>
+//#include <depthai_bridge/NeuralNetworkDetectionConverter.hpp>
 #include <depthai_bridge/ImgDetectionConverter.hpp>
 
 #include "depthai/depthai.hpp"
 
 #include "jsoncpp/json/json.h"
 
+#include "processing.h"
+
 std::vector<std::string> usbStrings = {"UNKNOWN", "LOW", "FULL", "HIGH", "SUPER", "SUPER_PLUS"};
 
 std::tuple<dai::Pipeline, int, int> createPipeline(bool enableDepth,
-                                                   bool enableSpatialDetection,
+                                                   bool enableNeuralNetworkDetection,
                                                    bool lrcheck,
                                                    bool extended,
                                                    bool subpixel,
@@ -203,7 +203,7 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableDepth,
                 "RGB Camera resolution is heigher than the configured stereo resolution. Downscaling the stereo depth/disparity to match RGB camera resolution.");
         }
 
-        if(enableSpatialDetection) {
+        if(enableNeuralNetworkDetection) {
             if (previewWidth > rgbWidth or  previewHeight > rgbHeight) {
                 ROS_ERROR_STREAM("Preview Image size should be smaller than the scaled resolution. Please adjust the scale parameters or the preview size accordingly.");
                 throw std::runtime_error("Invalid Image Size");
@@ -213,53 +213,24 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableDepth,
             camRgb->setInterleaved(false);
             camRgb->setPreviewSize(previewWidth, previewHeight);
 
-#if 0
 
-            auto spatialDetectionNetwork = pipeline.create<dai::node::YoloSpatialDetectionNetwork>();
+
+            auto NeuralNetworkDetectionNetwork = pipeline.create<dai::node::NeuralNetwork>();
             auto xoutNN = pipeline.create<dai::node::XLinkOut>();
             auto xoutPreview = pipeline.create<dai::node::XLinkOut>();
             xoutPreview->setStreamName("preview");
             xoutNN->setStreamName("detections");
 
-            spatialDetectionNetwork->setBlobPath(nnPath);
-            spatialDetectionNetwork->setConfidenceThreshold(0.5f);
-            spatialDetectionNetwork->input.setBlocking(false);
-            spatialDetectionNetwork->setBoundingBoxScaleFactor(0.5);
-            spatialDetectionNetwork->setDepthLowerThreshold(100);
-            spatialDetectionNetwork->setDepthUpperThreshold(10000);
-
-            // yolo specific parameters
-            spatialDetectionNetwork->setNumClasses(detectionClassesCount);
-            spatialDetectionNetwork->setCoordinateSize(4);
-            spatialDetectionNetwork->setAnchors({10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319});
-            spatialDetectionNetwork->setAnchorMasks({{"side13", {3, 4, 5}}, {"side26", {1, 2, 3}}});
-            spatialDetectionNetwork->setIouThreshold(0.5f);
-
-#else
-
-            auto spatialDetectionNetwork = pipeline.create<dai::node::NeuralNetwork>();
-            auto xoutNN = pipeline.create<dai::node::XLinkOut>();
-            auto xoutPreview = pipeline.create<dai::node::XLinkOut>();
-            xoutPreview->setStreamName("preview");
-            xoutNN->setStreamName("detections");
-
-            spatialDetectionNetwork->setBlobPath(nnPath);
-
-
-#endif
-
+            NeuralNetworkDetectionNetwork->setBlobPath(nnPath);
 
 
             // Link plugins CAM -> NN -> XLINK
-            camRgb->preview.link(spatialDetectionNetwork->input);
-            if(syncNN)
-                spatialDetectionNetwork->passthrough.link(xoutPreview->input);
-            else
-                camRgb->preview.link(xoutPreview->input);
-            spatialDetectionNetwork->out.link(xoutNN->input);
-#if 0
-            stereo->depth.link(spatialDetectionNetwork->inputDepth);
-#endif
+            camRgb->preview.link(NeuralNetworkDetectionNetwork->input);
+
+            NeuralNetworkDetectionNetwork->out.link(xoutNN->input);
+            //self.cam_rgb.preview.link(self.detection_nn.input)
+
+
         }
 
         stereoWidth = rgbWidth;
@@ -304,7 +275,7 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                    std::vector<std::string> class_names,
                    float confidence_threshold);
 
-bool AbortDetectionTask = false;
+
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "stereo_inertial_node");
@@ -315,7 +286,7 @@ int main(int argc, char** argv) {
     int badParams = 0, stereo_fps, confidence, LRchecktresh, imuModeParam, detectionClassesCount, expTime, sensIso;
     int rgbScaleNumerator, rgbScaleDinominator, previewWidth, previewHeight;
     bool lrcheck, extended, subpixel, enableDepth, rectify, depth_aligned, manualExposure;
-    bool enableSpatialDetection, enableDotProjector, enableFloodLight;
+    bool enableNeuralNetworkDetection, enableDotProjector, enableFloodLight;
     bool usb2Mode, poeMode, syncNN;
     double angularVelCovariance, linearAccelCovariance;
     double dotProjectormA, floodLightmA;
@@ -353,7 +324,7 @@ int main(int argc, char** argv) {
 
     badParams += !pnh.getParam("angularVelCovariance", angularVelCovariance);
     badParams += !pnh.getParam("linearAccelCovariance", linearAccelCovariance);
-    badParams += !pnh.getParam("enableSpatialDetection", enableSpatialDetection);
+    badParams += !pnh.getParam("enableNeuralNetworkDetection", enableNeuralNetworkDetection);
     badParams += !pnh.getParam("detectionClassesCount", detectionClassesCount);
     badParams += !pnh.getParam("syncNN", syncNN);
     badParams += !pnh.getParam("confidenceThreshold", confidenceThreshold);
@@ -380,12 +351,12 @@ int main(int argc, char** argv) {
     }
     nnPath = resourceBaseFolder + "/" + nnName;
     nnConfigPath = resourceBaseFolder + "/" + nnConfig;
-    if(enableSpatialDetection){
-        std::cout << " SpatialDetection enabled: nnPath: " << nnPath << std::endl;
-        std::cout << " SpatialDetection enabled: nnConfigPath: " << nnConfigPath << std::endl;
+    if(enableNeuralNetworkDetection){
+        std::cout << " NeuralNetworkDetection enabled: nnPath: " << nnPath << std::endl;
+        std::cout << " NeuralNetworkDetection enabled: nnConfigPath: " << nnConfigPath << std::endl;
     }
     else
-        std::cout << " SpatialDetection disabled" << std::endl;
+        std::cout << " NeuralNetworkDetection disabled" << std::endl;
     if(mode == "depth") {
         enableDepth = true;
     } else {
@@ -407,38 +378,19 @@ int main(int argc, char** argv) {
         // reader reads the data and stores it in completeJsonData
         reader.parse(file, completeJsonData);
         // complete JSON data
-        //std::cout << “Complete JSON data: “<< std::endl << completeJsonData << std::endl;
-#if 0
-        std::cout << completeJsonData << std::endl;
-#endif
-        // get the value associated with name key
-        //cout << “Name: “ << completeJsonData[“name”] << endl;
-        // get the value associated with grade key
-        //cout << “Grade: “ << completeJsonData[“grade”] << endl;
+
 
         nn_width = std::stoi(completeJsonData["environment"]["RESOLUTION"].asString());
         nn_height = nn_width;
-#if 0
-        std::cout << "nn_width :" << nn_width << std::endl;
-#endif
 
         //const std::vector<std::string> classes = completeJsonData["class_names"];
         const Json::Value classes = completeJsonData["class_names"];
 
-#if 0
-        std::cout << completeJsonData["class_names"] << std::endl;
-#endif
-
         //classes = completeJsonData.get<std::vector<std:string>>().
         for(int i = 0; i < classes.size(); i++){
-#if 0
-          std::cout << classes[i].asString() << ", ";
-#endif
           class_names.push_back(classes[i].asString());
         }
-#if 0
-        std::cout << std::endl;
-#endif
+
 
     }
 
@@ -447,7 +399,7 @@ int main(int argc, char** argv) {
     int image_width, image_height;
     bool isDeviceFound = false;
     std::tie(pipeline, image_width, image_height) = createPipeline(enableDepth,
-                                                        enableSpatialDetection,
+                                                        enableNeuralNetworkDetection,
                                                         lrcheck,
                                                         extended,
                                                         subpixel,
@@ -466,6 +418,8 @@ int main(int argc, char** argv) {
                                                         syncNN,
                                                         nnPath,
                                                         nnConfigPath);
+
+
 
     std::shared_ptr<dai::Device> device;
     std::vector<dai::DeviceInfo> availableDevices = dai::Device::getAllAvailableDevices();
@@ -597,7 +551,7 @@ int main(int argc, char** argv) {
                 "color");
             rgbPublish.addPublisherCallback();
 
-            if(enableSpatialDetection) {
+            if(enableNeuralNetworkDetection) {
                 auto previewQueue = device->getOutputQueue("preview", 30, false);
                 auto detectionQueue = device->getOutputQueue("detections", 30, false);
                 auto previewCameraInfo = rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, previewWidth, previewHeight);
@@ -612,39 +566,18 @@ int main(int argc, char** argv) {
                     "color/preview");
                 previewPublish.addPublisherCallback();
 
-#if 0
 
 
-                dai::rosBridge::SpatialDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 416, 416, false);
-                dai::rosBridge::BridgePublisher<depthai_ros_msgs::SpatialDetectionArray, dai::SpatialImgDetections> detectionPublish(
-                    detectionQueue,
-                    pnh,
-                    std::string("color/Spatial_detections"),
-                    std::bind(&dai::rosBridge::SpatialDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
-                    30);
-                detectionPublish.addPublisherCallback();
-#else
-#if 0
-                dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 416, 416, false);
-                dai::rosBridge::BridgePublisher<vision_msgs::Detection2DArray, dai::ImgDetections> detectionPublish(
-                    detectionQueue,
-                    pnh,
-                    std::string("color/detections"),
-                    std::bind(&dai::rosBridge::ImgDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
-                    30);
-
-                detectionPublish.addPublisherCallback();
-#endif
                 std::thread detection_task(DetectionTask,
                                            device->getOutputQueue("detections", 30, false),
                                            tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
-                                           image_width / nn_width,
-                                           image_height / nn_height,
+                                           (float)image_width / (float)nn_width,
+                                           (float)image_height / (float)nn_height,
                                            class_names,
                                            confidenceThreshold);
-#endif
+
                 ros::spin();
-                AbortDetectionTask = true;
+                AbortDetectionTask();
 
                 detection_task.join();
 
@@ -709,7 +642,7 @@ int main(int argc, char** argv) {
                 "color");
             rgbPublish.addPublisherCallback();
 
-            if(enableSpatialDetection) {
+            if(enableNeuralNetworkDetection) {
                 auto previewQueue = device->getOutputQueue("preview", 30, false);
                 auto detectionQueue = device->getOutputQueue("detections", 30, false);
                 auto previewCameraInfo = rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, previewWidth, previewHeight);
@@ -723,43 +656,19 @@ int main(int argc, char** argv) {
                     previewCameraInfo,
                     "color/preview");
                 previewPublish.addPublisherCallback();
-#if 0
-                dai::rosBridge::SpatialDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 416, 416, false);
-                dai::rosBridge::BridgePublisher<depthai_ros_msgs::SpatialDetectionArray, dai::SpatialImgDetections> detectionPublish(
-                    detectionQueue,
-                    pnh,
-                    std::string("color/yolov4_Spatial_detections"),
-                    std::bind(&dai::rosBridge::SpatialDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
-                    30);
-                detectionPublish.addPublisherCallback();
-#else
 
-#if 0
-                dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 416, 416, false);
-                dai::rosBridge::BridgePublisher<vision_msgs::Detection2DArray, dai::ImgDetections> detectionPublish(
-                    detectionQueue,
-                    pnh,
-                    std::string("color/detections"),
-                    std::bind(&dai::rosBridge::ImgDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
-                    30);
-
-                detectionPublish.addPublisherCallback();
-#endif
 
                 std::thread detection_task(DetectionTask,
                                            device->getOutputQueue("detections", 30, false),
                                            tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
-                                           image_width / nn_width,
-                                           image_height / nn_height,
+                                           (float)image_width / (float)nn_width,
+                                           (float)image_height / (float)nn_height,
                                            class_names,
                                            confidenceThreshold);
 
-
-#endif
-
-
                 ros::spin();
-                AbortDetectionTask = true;
+                AbortDetectionTask();
+
                 detection_task.join();
             }
 
@@ -794,263 +703,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-
-#if 0
-std::vector<std::float> nonMaximumSuppression(std::vector<std::float> boxes, float overlap_threshold);
-#endif
-
-#include <iostream>
-#include "ros/ros.h"
-void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::string topic_name, float scale_x, float scale_y,  std::vector<std::string> class_names, float confidence_threshold)
-{
-    int cnt = 0;
-    int messageCounter = 0;
-    int seq_number = 0;
-    bool display_info = false;
-
-
-    ros::NodeHandle n;
-    ros::Publisher dectection_publisher = n.advertise<depthai_ros_msgs::SpatialDetectionArray>(topic_name, 1000);
-
-    int number_of_classes = class_names.size();
-
-    while(!AbortDetectionTask){
-
-      auto daiDataPtr = daiMessageQueue->tryGet<dai::NNData>();
-
-      if(daiDataPtr != nullptr) {
-
-        if(display_info){
-
-              std::cout << "Layer names: ";
-              for(auto val : daiDataPtr->getAllLayerNames()) {
-                  std::cout << val << ", ";
-              }
-              std::cout << std::endl;
-
-              auto rimestamp = daiDataPtr->getTimestamp();
-              auto devive_timestamp = daiDataPtr->getTimestampDevice();
-
-              std::cout << "NNData size: " << daiDataPtr->getData().size() << std::endl;
-              std::cout << "FP16 values: ";
-              for(auto val : daiDataPtr->getLayerFp16("output")) {
-                  //std::cout << std::to_string(val) << "x ";
-              }
-              std::cout << std::endl;
-
-              //auto val = daiDataPtr->getLayerFp16("auto");
-              //std::cout << val << std::endl;
-              std::cout << "UINT8 values: ";
-              for(auto val : daiDataPtr->getLayerUInt8("uint8")) {
-                  std::cout << std::to_string(val) << "x ";
-              }
-              std::cout << std::endl;
-              display_info = false;
-        }
-
-
-
-        auto in_nn_layer = daiDataPtr->getLayerFp16("output");
-        int num_anchor_boxes = in_nn_layer.size() / (number_of_classes + 5);
-
-  #if 0
-        std::cout << "Number of anchor boxes: " << num_anchor_boxes << std::endl;
-  #endif
-        int in_nn_layer_size = in_nn_layer.size();
-
-        std::vector<std::vector<float>> tensors;
-        tensors.resize(num_anchor_boxes);
-        for (int i = 0; i < num_anchor_boxes; i++)
-        {
-            tensors[i].resize(number_of_classes + 5);
-        }
-
-
-
-        for (int i = 0; i < in_nn_layer_size; i++)
-        {
-            int row = i / (number_of_classes + 5);
-            int col = i % (number_of_classes + 5);
-            tensors[row][col] = in_nn_layer[i];
-        }
-
-
-        std::vector<std::vector<float>> boxes;
-
-        for(int i = 0; i < num_anchor_boxes; i++){
-          if(tensors[i][4] >= confidence_threshold){
-
-            std::vector<float> np_box_corner;
-            np_box_corner.resize(6);
-
-            np_box_corner[0] = tensors[i][0] * scale_x;
-            np_box_corner[1] = tensors[i][1] * scale_y;
-            np_box_corner[2] = tensors[i][2] * scale_x;
-            np_box_corner[3] = tensors[i][3] * scale_y;
-
-            int class_number = 0;
-            float max_conf = 0;
-            for(int j = 0; j < number_of_classes; j++){
-              if(tensors[i][5+j] > max_conf){
-                max_conf = tensors[i][5+j];
-                class_number = j;
-              }
-            }
-            np_box_corner[4] = tensors[i][4];
-            np_box_corner[5] = (float)class_number;
-
-            boxes.push_back(np_box_corner);
-          }
-        }
-
-  #if 0
-
-        for(int i = 0; i < boxes.size(); i++){
-          for(int j = 0; j < boxes[i].size(); j++){
-            std::cout << boxes[i][j] << ", ";
-          }
-          std::cout << std::endl;
-        }
-  #endif
-        std::vector<std::vector<float>>::iterator box;
-        std::vector<float>::iterator corner;
-  #if 0
-        for(box = boxes.begin(); box != boxes.end(); box++){
-          for(corner = box->begin(); corner != box->end(); corner++){
-            std::cout << *corner << ", ";
-          }
-          corner = box->begin() + 5;
-          std::cout << class_names[static_cast<int>(*corner)];
-          std::cout << std::endl;
-        }
-  #endif
-
-
-#if 0
-  std::vector<std::float> nonMaximumSuppression(std::vector<std::float> boxes, float overlap_threshold);
-#endif
-
-        {
-          depthai_ros_msgs::SpatialDetectionArray detection_array;
-          detection_array.header.seq=seq_number++;
-          detection_array.header.stamp = ros::Time::now();
-
-          depthai_ros_msgs::SpatialDetection detection;
-          vision_msgs::ObjectHypothesis object_hypothesis;
-          for(box = boxes.begin(); box != boxes.end(); box++){
-            detection.results.clear();
-            corner = box->begin();
-            detection.bbox.center.x = *(corner + 0);
-            detection.bbox.center.y = *(corner + 1);
-            detection.bbox.center.theta = 0;
-            detection.bbox.size_x = *(corner + 2);
-            detection.bbox.size_y = *(corner + 3);
-
-
-            object_hypothesis.id = static_cast<int>(*(corner+5));
-            object_hypothesis.score = *(corner + 4);
-            detection.results.push_back(object_hypothesis);
-            detection_array.detections.push_back(detection);
-            break;
-
-          }
-
-          dectection_publisher.publish(detection_array);
-
-        }
-    }
-
-      std::this_thread::sleep_for(std::chrono::milliseconds(0));
-    }
-}
-
-#if 0
-struct detection_box
-{
-    cv::Rect box;               /*!< Bounding box */
-    double svm_val;             /*!< SVM response at that detection*/
-    cv::Size res_of_detection;  /*!< Image resolution at which the detection occurred */
-};
-#endif
-
-/*!
-\brief Applies the Non Maximum Suppression algorithm on the detections to find the detections that do not overlap
-
-The svm response is used to sort the detections. Translated from http://www.pyimagesearch.com/2014/11/17/non-maximum-suppression-object-detection-python/
-
-\param boxes list of detections that are the input for the NMS algorithm
-\param overlap_threshold the area threshold for the overlap between detections boxes. boxes that have overlapping area above threshold are discarded
-
-
-\returns list of final detections that are no longer overlapping
-*/
-#if 0
-std::vector<std::float> nonMaximumSuppression(std::vector<std::float> boxes, float overlap_threshold)
-{
-
-  #if 0
-    std::vector<detection_box> res;
-    std::vector<float> areas;
-
-    //if there are no boxes, return empty
-    if (boxes.size() == 0)
-        return res;
-
-    for (int i = 0; i < boxes.size(); i++)
-        areas.push_back(boxes[i].box.area());
-
-    std::vector<int> idxs = argsort(boxes);
-
-    std::vector<int> pick;          //indices of final detection boxes
-
-    while (idxs.size() > 0)         //while indices still left to analyze
-    {
-        int last = idxs.size() - 1; //last element in the list. that is, detection with highest SVM response
-        int i = idxs[last];
-        pick.push_back(i);          //add highest SVM response to the list of final detections
-
-        std::vector<int> suppress;
-        suppress.push_back(last);
-
-        for (int pos = 0; pos < last; pos++)        //for every other element in the list
-        {
-            int j = idxs[pos];
-
-            //find overlapping area between boxes
-            int xx1 = max(boxes[i].box.x, boxes[j].box.x);          //get max top-left corners
-            int yy1 = max(boxes[i].box.y, boxes[j].box.y);          //get max top-left corners
-            int xx2 = min(boxes[i].box.br().x, boxes[j].box.br().x);    //get min bottom-right corners
-            int yy2 = min(boxes[i].box.br().y, boxes[j].box.br().y);    //get min bottom-right corners
-
-            int w = max(0, xx2 - xx1 + 1);      //width
-            int h = max(0, yy2 - yy1 + 1);      //height
-
-            float overlap = float(w * h) / areas[j];
-
-            if (overlap > overlap_threshold)        //if the boxes overlap too much, add it to the discard pile
-                suppress.push_back(pos);
-        }
-
-        for (int p = 0; p < suppress.size(); p++)   //for graceful deletion
-        {
-            idxs[suppress[p]] = -1;
-        }
-
-        for (int p = 0; p < idxs.size();)
-        {
-            if (idxs[p] == -1)
-                idxs.erase(idxs.begin() + p);
-            else
-                p++;
-        }
-
-    }
-
-    for (int i = 0; i < pick.size(); i++)       //extract final detections frm input array
-        res.push_back(boxes[pick[i]]);
-
-    return res;
-#endif
-
-}
-#endif

@@ -156,7 +156,7 @@ elseif( CATKIN_DEVEL_PREFIX OR CATKIN_BUILD_BINARY_PACKAGE )
   )
 
   macro(dai_add_node node_name node_src)
-      add_executable("${node_name}" "${node_src}" ros1_src/processing.cpp)
+      add_executable("${node_name}" "${node_src}")
 
       add_dependencies("${node_name}"
         ${catkin_EXPORTED_TARGETS}
