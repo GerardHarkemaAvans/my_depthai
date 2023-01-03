@@ -34,6 +34,7 @@
     <arg name="nnName"                 default="simplefruits_V1.blob"         />
     <arg name="nnConfig"               default="simplefruits_V1.txt"         />
     <arg name="resourceBaseFolder"     default="$(find my_depthai)/resources" />
+    <arg name="confidenceThreshold"    default="0.5"/>
 
 
     <!-- <arg name="nnPath"                 default="" /> -->
@@ -100,6 +101,7 @@
         <param name="nnName"                   value="$(arg nnName)"/>
         <param name="nnConfig"                 value="$(arg nnConfig)"/>
         <param name="resourceBaseFolder"       value="$(arg resourceBaseFolder)"/>
+        <param name="confidenceThreshold"      value="$(arg confidenceThreshold)"/>
 
         <param name="stereo_fps"            value="$(arg stereo_fps)" />
         <param name="confidence"            value="$(arg confidence)" />
@@ -160,6 +162,8 @@
   </group>
 
   <node  type="nn_detector_display.py" name="nnDetectorDisplay" pkg="my_depthai" output="screen">
+      <param name="nnConfig"                 value="$(arg nnConfig)"/>
+      <param name="resourceBaseFolder"       value="$(arg resourceBaseFolder)"/>
       <remap from="image_in" to="/stereo_inertial_roboflow_publisher/color/image"/>
       <remap from="image_out" to="/stereo_inertial_roboflow_publisher/color/detections"/>
       <remap from="detections" to="/oak_rgb_camera_optical_frame/color/detections"/>

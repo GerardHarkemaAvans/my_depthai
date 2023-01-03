@@ -13,16 +13,26 @@ from cv_bridge import CvBridge, CvBridgeError
 import sensor_msgs.point_cloud2 as pc2
 from depthai_ros_msgs.msg import SpatialDetectionArray
 import random as rng
-
+import json
 
 
 import ros_numpy
 
 
-class circle_detector:
+class detection_displayer:
 
-    def __init__(self):
+    def __init__(self, config_file):
+        rospy.loginfo(config_file)
         self.display_image = False
+
+
+
+        with open(config_file, 'r') as f:
+            self.model_objects = json.loads(f.read())
+            self.class_names = self.model_objects["class_names"]
+            self.colors = self.model_objects["colors"]
+
+        rospy.loginfo(self.class_names)
 
         self.image_pub = rospy.Publisher("/image_out", Image, queue_size = 10)
 
@@ -41,25 +51,28 @@ class circle_detector:
             y1 = detection.bbox.center.y - (detection.bbox.size_y / 2)
             x2 = detection.bbox.center.x + (detection.bbox.size_x / 2)
             y2 = detection.bbox.center.y + (detection.bbox.size_y / 2)
-            color = (rng.randint(0,256), rng.randint(0,256), rng.randint(0,256))
+            #color = (rng.randint(0,256), rng.randint(0,256), rng.randint(0,256))
+            color = (0,0,255);
             cv2.rectangle(self.image, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+
+
+            text = '%s, %.2f%%' % (self.class_names[detection.results[0].id], detection.results[0].score * 100)
+            rospy.loginfo(text)
+            image = cv2.putText(self.image, text, (int(x1)+3, int(y2)+3), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
+
         try:
             #if(self.image):
             self.image_pub.publish(self.bridge.cv2_to_imgmsg(self.image, "bgr8"))
-            self.image = None
+            #self.image = None
         except CvBridgeError as e:
             print(e)
-
-
-        pass
-
 
 
     def image_callback(self,data):
         #rospy.loginfo("image Callback")
         try:
-            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-            self.image = cv_image.copy()
+            self.image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            #self.image = cv_image.copy()
         except CvBridgeError as e:
             print(e)
 
@@ -70,8 +83,15 @@ class circle_detector:
 
 
 def main(args):
-    ic = circle_detector()
+
     rospy.init_node('nn_detections_display', anonymous=True)
+
+    node_name = rospy.get_name()
+
+    nnConfig = rospy.get_param(node_name + '/nnConfig') # node_name/argsname
+    resourceBaseFolder = rospy.get_param(node_name + '/resourceBaseFolder') # node_name/argsname
+
+    ic = detection_displayer(resourceBaseFolder + '/'+ nnConfig)
     try:
         rospy.spin()
     except KeyboardInterrupt:

@@ -156,7 +156,25 @@ elseif( CATKIN_DEVEL_PREFIX OR CATKIN_BUILD_BINARY_PACKAGE )
   )
 
   macro(dai_add_node node_name node_src)
-      add_executable("${node_name}" "${node_src}")
+      add_executable("${node_name}" "${node_src}" ros1_src/processing.cpp)
+
+      add_dependencies("${node_name}"
+        ${catkin_EXPORTED_TARGETS}
+        ${${PROJECT_NAME}_EXPORTED_TARGETS}
+      )
+
+      target_link_libraries("${node_name}"
+        ${catkin_LIBRARIES}
+        depthai::core
+        opencv_imgproc
+        opencv_highgui
+        jsoncpp
+      )
+
+  endmacro()
+
+  macro(dai_add_node2 node_name node_src src_file2)
+      add_executable("${node_name}" "${node_src}" "${src_file2}")
 
       add_dependencies("${node_name}"
         ${catkin_EXPORTED_TARGETS}
@@ -204,7 +222,7 @@ elseif( CATKIN_DEVEL_PREFIX OR CATKIN_BUILD_BINARY_PACKAGE )
 
   #dai_add_node(stereo_node ros1_src/stereo_publisher.cpp)
   #dai_add_node(yolov4_spatial_node ros1_src/yolov4_spatial_publisher.cpp)
-  dai_add_node(stereo_inertial_roboflow_node ros1_src/stereo_inertial_roboflow_publisher.cpp)
+  dai_add_node2(stereo_inertial_roboflow_node ros1_src/stereo_inertial_roboflow_publisher.cpp ros1_src/processing.cpp)
 
   #target_compile_definitions(mobilenet_node PRIVATE BLOB_NAME="${mobilenet_blob_name}")
   #target_compile_definitions(yolov4_spatial_node PRIVATE BLOB_NAME="${tiny_yolo_v4_blob_name}")

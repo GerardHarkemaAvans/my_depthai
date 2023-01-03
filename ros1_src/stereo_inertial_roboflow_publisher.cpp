@@ -302,7 +302,7 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                    float scale_x,
                    float scale_y,
                    std::vector<std::string> class_names,
-                   float conf_thres);
+                   float confidence_threshold);
 
 bool AbortDetectionTask = false;
 
@@ -319,6 +319,7 @@ int main(int argc, char** argv) {
     bool usb2Mode, poeMode, syncNN;
     double angularVelCovariance, linearAccelCovariance;
     double dotProjectormA, floodLightmA;
+    float confidenceThreshold = 0.5;
     std::string nnName(BLOB_NAME), nnConfig(BLOB_NAME);  // Set your blob name for the model here
 
     badParams += !pnh.getParam("mxId", mxId);
@@ -355,6 +356,7 @@ int main(int argc, char** argv) {
     badParams += !pnh.getParam("enableSpatialDetection", enableSpatialDetection);
     badParams += !pnh.getParam("detectionClassesCount", detectionClassesCount);
     badParams += !pnh.getParam("syncNN", syncNN);
+    badParams += !pnh.getParam("confidenceThreshold", confidenceThreshold);
 
     // Applies only to PRO model
     badParams += !pnh.getParam("enableDotProjector", enableDotProjector);
@@ -406,7 +408,9 @@ int main(int argc, char** argv) {
         reader.parse(file, completeJsonData);
         // complete JSON data
         //std::cout << “Complete JSON data: “<< std::endl << completeJsonData << std::endl;
+#if 0
         std::cout << completeJsonData << std::endl;
+#endif
         // get the value associated with name key
         //cout << “Name: “ << completeJsonData[“name”] << endl;
         // get the value associated with grade key
@@ -414,21 +418,27 @@ int main(int argc, char** argv) {
 
         nn_width = std::stoi(completeJsonData["environment"]["RESOLUTION"].asString());
         nn_height = nn_width;
+#if 0
         std::cout << "nn_width :" << nn_width << std::endl;
+#endif
 
         //const std::vector<std::string> classes = completeJsonData["class_names"];
         const Json::Value classes = completeJsonData["class_names"];
 
-
+#if 0
         std::cout << completeJsonData["class_names"] << std::endl;
-
+#endif
 
         //classes = completeJsonData.get<std::vector<std:string>>().
         for(int i = 0; i < classes.size(); i++){
+#if 0
           std::cout << classes[i].asString() << ", ";
+#endif
           class_names.push_back(classes[i].asString());
         }
+#if 0
         std::cout << std::endl;
+#endif
 
     }
 
@@ -631,7 +641,7 @@ int main(int argc, char** argv) {
                                            image_width / nn_width,
                                            image_height / nn_height,
                                            class_names,
-                                           confidence);
+                                           confidenceThreshold);
 #endif
                 ros::spin();
                 AbortDetectionTask = true;
@@ -742,7 +752,7 @@ int main(int argc, char** argv) {
                                            image_width / nn_width,
                                            image_height / nn_height,
                                            class_names,
-                                           confidence);
+                                           confidenceThreshold);
 
 
 #endif
@@ -785,64 +795,30 @@ int main(int argc, char** argv) {
     return 0;
 }
 
+#if 0
+std::vector<std::float> nonMaximumSuppression(std::vector<std::float> boxes, float overlap_threshold);
+#endif
 
-typedef struct{
-  float x;
-  float y;
-  float image_width;
-  float image_height;
-  float depth;
-  char *confidence;
-  char *class_name;
-}DETECTION;
-
-//#include <depthai_ros_msgs/SpatialDetectionArray.h>
 #include <iostream>
 #include "ros/ros.h"
-void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::string topic_name, float scale_x, float scale_y,  std::vector<std::string> class_names, float conf_thres)
+void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::string topic_name, float scale_x, float scale_y,  std::vector<std::string> class_names, float confidence_threshold)
 {
     int cnt = 0;
     int messageCounter = 0;
     int seq_number = 0;
-    bool display_info = true;
+    bool display_info = false;
 
-    //auto detectionQueue = device->getOutputQueue("detections", 30, false);
 
     ros::NodeHandle n;
     ros::Publisher dectection_publisher = n.advertise<depthai_ros_msgs::SpatialDetectionArray>(topic_name, 1000);
 
+    int number_of_classes = class_names.size();
+
     while(!AbortDetectionTask){
-      //std::cout << "task1 says: " << cnt++ << std::endl;
+
       auto daiDataPtr = daiMessageQueue->tryGet<dai::NNData>();
-      if(daiDataPtr == nullptr) {
-          messageCounter++;
-          if(messageCounter > 2000000) {
-              // ROS_WARN_STREAM_NAMED(LOG_TAG,
-              //                       "Missing " << messageCounter << " number of Incoming message from Depthai Queue " << _daiMessageQueue->getName());
-              messageCounter = 0;
-          }
-          continue;
-      }
 
-      if(messageCounter != 0) {
-          messageCounter = 0;
-      }
-
-      else
-      {
-#if 0
-        std::cout << "message received" << std::endl;
-#endif
-        //daiDataPtr.getLayerFp16('output');
-
-
-        //DETECTION *detection;
-        //detection = (DETECTION *)daiDataPtr->getRaw();
-        //detection = *daiDataPtr;
-        //std::cout << daiDataPtr->getRaw() << std::endl;
-
-        //std::cout << detection->class_name << std::endl;
-        //dectection_publisher.publish(msg);
+      if(daiDataPtr != nullptr) {
 
         if(display_info){
 
@@ -855,27 +831,24 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
               auto rimestamp = daiDataPtr->getTimestamp();
               auto devive_timestamp = daiDataPtr->getTimestampDevice();
 
-        #if 1
               std::cout << "NNData size: " << daiDataPtr->getData().size() << std::endl;
               std::cout << "FP16 values: ";
               for(auto val : daiDataPtr->getLayerFp16("output")) {
                   //std::cout << std::to_string(val) << "x ";
               }
               std::cout << std::endl;
-        #endif
 
               //auto val = daiDataPtr->getLayerFp16("auto");
               //std::cout << val << std::endl;
-        #if 0
               std::cout << "UINT8 values: ";
               for(auto val : daiDataPtr->getLayerUInt8("uint8")) {
                   std::cout << std::to_string(val) << "x ";
               }
               std::cout << std::endl;
-        #endif
-          display_info = false;
+              display_info = false;
         }
-        int number_of_classes = class_names.size();
+
+
 
         auto in_nn_layer = daiDataPtr->getLayerFp16("output");
         int num_anchor_boxes = in_nn_layer.size() / (number_of_classes + 5);
@@ -901,33 +874,22 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
             tensors[row][col] = in_nn_layer[i];
         }
 
-        float conf_thres = 0.5;
 
         std::vector<std::vector<float>> boxes;
 
         for(int i = 0; i < num_anchor_boxes; i++){
-          if(tensors[i][4] >= conf_thres){
-  #if 0
-            for(int j = 0; j < (number_of_classes + 5); j++){
-              std::cout << tensors[i][j] << ", ";
-            }
-            std::cout << std::endl;
-  #endif
+          if(tensors[i][4] >= confidence_threshold){
+
             std::vector<float> np_box_corner;
             np_box_corner.resize(6);
-  #if 0
-            np_box_corner[0] = tensors[i][0] - tensors[i][2] / 2;
-            np_box_corner[1] = tensors[i][1] - tensors[i][3] / 2;
-            np_box_corner[2] = tensors[i][0] + tensors[i][2] / 2;
-            np_box_corner[3] = tensors[i][1] + tensors[i][3] / 2;
-  #endif
+
             np_box_corner[0] = tensors[i][0] * scale_x;
             np_box_corner[1] = tensors[i][1] * scale_y;
             np_box_corner[2] = tensors[i][2] * scale_x;
             np_box_corner[3] = tensors[i][3] * scale_y;
 
             int class_number = 0;
-            float max_conf = tensors[i][5];
+            float max_conf = 0;
             for(int j = 0; j < number_of_classes; j++){
               if(tensors[i][5+j] > max_conf){
                 max_conf = tensors[i][5+j];
@@ -962,6 +924,12 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
           std::cout << std::endl;
         }
   #endif
+
+
+#if 0
+  std::vector<std::float> nonMaximumSuppression(std::vector<std::float> boxes, float overlap_threshold);
+#endif
+
         {
           depthai_ros_msgs::SpatialDetectionArray detection_array;
           detection_array.header.seq=seq_number++;
@@ -983,6 +951,7 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
             object_hypothesis.score = *(corner + 4);
             detection.results.push_back(object_hypothesis);
             detection_array.detections.push_back(detection);
+            break;
 
           }
 
@@ -991,6 +960,97 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue, std::s
         }
     }
 
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      std::this_thread::sleep_for(std::chrono::milliseconds(0));
     }
 }
+
+#if 0
+struct detection_box
+{
+    cv::Rect box;               /*!< Bounding box */
+    double svm_val;             /*!< SVM response at that detection*/
+    cv::Size res_of_detection;  /*!< Image resolution at which the detection occurred */
+};
+#endif
+
+/*!
+\brief Applies the Non Maximum Suppression algorithm on the detections to find the detections that do not overlap
+
+The svm response is used to sort the detections. Translated from http://www.pyimagesearch.com/2014/11/17/non-maximum-suppression-object-detection-python/
+
+\param boxes list of detections that are the input for the NMS algorithm
+\param overlap_threshold the area threshold for the overlap between detections boxes. boxes that have overlapping area above threshold are discarded
+
+
+\returns list of final detections that are no longer overlapping
+*/
+#if 0
+std::vector<std::float> nonMaximumSuppression(std::vector<std::float> boxes, float overlap_threshold)
+{
+
+  #if 0
+    std::vector<detection_box> res;
+    std::vector<float> areas;
+
+    //if there are no boxes, return empty
+    if (boxes.size() == 0)
+        return res;
+
+    for (int i = 0; i < boxes.size(); i++)
+        areas.push_back(boxes[i].box.area());
+
+    std::vector<int> idxs = argsort(boxes);
+
+    std::vector<int> pick;          //indices of final detection boxes
+
+    while (idxs.size() > 0)         //while indices still left to analyze
+    {
+        int last = idxs.size() - 1; //last element in the list. that is, detection with highest SVM response
+        int i = idxs[last];
+        pick.push_back(i);          //add highest SVM response to the list of final detections
+
+        std::vector<int> suppress;
+        suppress.push_back(last);
+
+        for (int pos = 0; pos < last; pos++)        //for every other element in the list
+        {
+            int j = idxs[pos];
+
+            //find overlapping area between boxes
+            int xx1 = max(boxes[i].box.x, boxes[j].box.x);          //get max top-left corners
+            int yy1 = max(boxes[i].box.y, boxes[j].box.y);          //get max top-left corners
+            int xx2 = min(boxes[i].box.br().x, boxes[j].box.br().x);    //get min bottom-right corners
+            int yy2 = min(boxes[i].box.br().y, boxes[j].box.br().y);    //get min bottom-right corners
+
+            int w = max(0, xx2 - xx1 + 1);      //width
+            int h = max(0, yy2 - yy1 + 1);      //height
+
+            float overlap = float(w * h) / areas[j];
+
+            if (overlap > overlap_threshold)        //if the boxes overlap too much, add it to the discard pile
+                suppress.push_back(pos);
+        }
+
+        for (int p = 0; p < suppress.size(); p++)   //for graceful deletion
+        {
+            idxs[suppress[p]] = -1;
+        }
+
+        for (int p = 0; p < idxs.size();)
+        {
+            if (idxs[p] == -1)
+                idxs.erase(idxs.begin() + p);
+            else
+                p++;
+        }
+
+    }
+
+    for (int i = 0; i < pick.size(); i++)       //extract final detections frm input array
+        res.push_back(boxes[pick[i]]);
+
+    return res;
+#endif
+
+}
+#endif
