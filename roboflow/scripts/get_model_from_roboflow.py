@@ -1,8 +1,9 @@
-"""
-Gerard Harkema
-
-based on source from roboflow
-"""
+'''
+	get_model_from_roboflow.py
+	Purpose: reads a model from roboflow
+	@author Gerard Harkema
+	@version 0.9 2023/01/05
+'''
 
 import requests
 import os
@@ -44,9 +45,6 @@ def download_blob(project, version, api_key, device_id, api_endpoint):
     return os.path.join(output_dir, project)
 
 if __name__ == '__main__':
-    #print 'Number of arguments:', len(sys.argv), 'arguments.'
-    #print 'Argument List:', str(sys.argv)
-    #download_blob("simplefruits", "1", "K3sks4IiHf1jC7nMw6YN", "device", "https://api.roboflow.com")
     if len(sys.argv) != 4:
         print 'usage: ', str(sys.argv[0]), ' project version api_key'
     else:

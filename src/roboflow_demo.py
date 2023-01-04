@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+'''
+	roboflow_demo.py
+	Purpose: demonstrates detection of fruits using roboflow api
+	@author Gerard Harkema
+	@version 0.9 2023/01/05
+    License: CC BY-NC-SA
+'''
 from roboflowoak import RoboflowOak
 import cv2
 import time

@@ -28,19 +28,6 @@
     <arg name="expTime"               default="20000"/>
     <arg name="sensIso"               default="800" />
 
-    <arg name="enableNeuralNetworkDetection" default="true" />
-    <arg name="syncNN"                 default="true" />
-    <arg name="detectionClassesCount"  default="3"   />
-    <arg name="nnName"                 default="simplefruits_V1.blob"         />
-    <arg name="nnConfig"               default="simplefruits_V1.txt"         />
-    <arg name="resourceBaseFolder"     default="$(find my_depthai)/resources" />
-    <arg name="confidenceThreshold"    default="0.5"/>
-    <arg name="overlapThreshold"       default="0.5"/>
-    <arg name="boxNeighbors"           default="1"/>
-
-    <!-- <arg name="nnPath"                 default="" /> -->
-
-     <!-- see https://docs.luxonis.com/projects/api/en/latest/components/nodes/stereo_depth/#currently-configurable-blocks for possible combination of optionf for higher fps-->
     <arg name="stereo_fps"            default="15"  />
     <arg name="confidence"            default="200" />
     <arg name="LRchecktresh"          default="5"   />
@@ -59,8 +46,16 @@
     <arg name="enableFloodLight"      default="false"/>
     <arg name="dotProjectormA"        default="200.0"/>
     <arg name="floodLightmA"          default="200.0"/>
+
     <arg name="enableRviz"            default="true"/>
-    <arg name="enableMarkerPublish"   default="false" />
+
+    <arg name="enableNeuralNetworkDetection" default="true" />
+    <arg name="nnName"                 default="simplefruits_V1.blob"         />
+    <arg name="nnConfig"               default="simplefruits_V1.txt"         />
+    <arg name="resourceBaseFolder"     default="$(find my_depthai)/resources" />
+    <arg name="confidenceThreshold"    default="0.5"/>
+    <arg name="overlapThreshold"       default="0.5"/>
+    <arg name="boxNeighbors"           default="0"/>
 
     <include file="$(find my_depthai)/launch/urdf_ex.launch">
         <arg name="base_frame"      value="$(arg  base_frame)"  />
@@ -91,26 +86,12 @@
         <param name="extended"              value="$(arg extended)"/>
         <param name="subpixel"              value="$(arg subpixel)"/>
         <param name="rectify"               value="$(arg rectify)" />
-        <param name="depth_aligned"         value="$(arg depth_aligned)" />
         <param name="manualExposure"        value="$(arg manualExposure)" />
         <param name="expTime"               value="$(arg expTime)" />
         <param name="sensIso"               value="$(arg sensIso)" />
 
-        <param name="enableNeuralNetworkDetection"   value="$(arg enableNeuralNetworkDetection)" />
-        <param name="syncNN"                   value="$(arg syncNN)" />
-        <param name="detectionClassesCount"    value="$(arg detectionClassesCount)" />
-        <param name="nnName"                   value="$(arg nnName)"/>
-        <param name="nnConfig"                 value="$(arg nnConfig)"/>
-        <param name="resourceBaseFolder"       value="$(arg resourceBaseFolder)"/>
-        <param name="confidenceThreshold"      value="$(arg confidenceThreshold)"/>
-        <param name="overlapThreshold"         value="$(arg overlapThreshold)"/>
-        <param name="boxNeighbors"                value="$(arg boxNeighbors)"/>
 
 
-        overlapThreshold
-
-
-        boxNeighbors
 
         <param name="stereo_fps"            value="$(arg stereo_fps)" />
         <param name="confidence"            value="$(arg confidence)" />
@@ -130,6 +111,14 @@
         <param name="enableFloodLight"      value="$(arg enableFloodLight)" />
         <param name="dotProjectormA"        value="$(arg dotProjectormA)" />
         <param name="floodLightmA"          value="$(arg floodLightmA)" />
+
+        <param name="enableNeuralNetworkDetection"   value="$(arg enableNeuralNetworkDetection)" />
+        <param name="nnName"                   value="$(arg nnName)"/>
+        <param name="nnConfig"                 value="$(arg nnConfig)"/>
+        <param name="resourceBaseFolder"       value="$(arg resourceBaseFolder)"/>
+        <param name="confidenceThreshold"      value="$(arg confidenceThreshold)"/>
+        <param name="overlapThreshold"         value="$(arg overlapThreshold)"/>
+        <param name="boxNeighbors"                value="$(arg boxNeighbors)"/>
     </node>
 
     <node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager" output="screen"/>
@@ -140,28 +129,18 @@
         <remap from="image" to="/stereo_inertial_roboflow_publisher/stereo/image"/>
     </node>
 
-
-    <node if="$(eval arg('depth_aligned') == true)" pkg="nodelet" type="nodelet" name="depth_image_to_rgb_pointcloud"
+    <node pkg="nodelet" type="nodelet" name="depth_image_to_rgb_pointcloud"
         args="load depth_image_proc/point_cloud_xyzrgb nodelet_manager">
         <param name="queue_size"          value="10"/>
-
         <remap from="rgb/camera_info" to="/stereo_inertial_roboflow_publisher/color/camera_info"/>
         <remap from="rgb/image_rect_color" to="/stereo_inertial_roboflow_publisher/color/image"/>
         <remap from="depth_registered/image_rect" to="/stereo_inertial_roboflow_publisher/stereo/image"/>
         <remap from="depth_registered/points" to="/stereo_inertial_roboflow_publisher/stereo/points"/>
     </node>
 
-    <node if="$(eval arg('depth_aligned') == false)" pkg="nodelet" type="nodelet" name="depth_image_to_pointcloud"
-        args="load depth_image_proc/point_cloud_xyz nodelet_manager">
-        <param name="queue_size"          value="10"/>
-        <remap from="camera_info" to="/stereo_inertial_roboflow_publisher/stereo/camera_info"/>
-        <remap from="image_rect" to="/stereo_inertial_roboflow_publisher/stereo/image"/>
-        <remap from="points" to="/stereo_inertial_roboflow_publisher/stereo/points"/>
-    </node>
-
 
   <group if="$(eval arg('enableRviz') == true)">
-    <node if="$(eval arg('depth_aligned') == true)" type="rviz" name="rviz" pkg="rviz" args="-d $(find my_depthai)/rviz/nn_detector.rviz" />
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find my_depthai)/rviz/nn_detector.rviz" />
   </group>
 
   <node  type="nn_detector_display.py" name="nnDetectorDisplay" pkg="my_depthai" output="screen">

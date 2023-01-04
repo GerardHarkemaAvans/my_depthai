@@ -229,10 +229,10 @@ elseif( CATKIN_DEVEL_PREFIX OR CATKIN_BUILD_BINARY_PACKAGE )
 
   target_compile_definitions(stereo_inertial_roboflow_node PRIVATE BLOB_NAME="${tiny_yolo_v4_blob_name}")
 
-  catkin_install_python(PROGRAMS
-  ros1_scripts/markerPublisher.py
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/markerPublisher
-)
+  #catkin_install_python(PROGRAMS
+  #ros1_scripts/markerPublisher.py
+  #DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/markerPublisher
+  #)
 
   ## Install these nodes
   install(TARGETS

@@ -1,4 +1,12 @@
 #!/usr/bin/env python
+'''
+	circle_detector.py
+	Purpose: detects circles from image
+	@author Gerard Harkema
+	@version 0.9 2023/01/05
+    License: CC BY-NC-SA
+'''
+
 from __future__ import print_function
 
 import roslib

@@ -1,4 +1,10 @@
-
+/**
+	processing.cpp
+	Purpose: ROS Implementation for OAK-D camera nn detection
+	@author Gerard Harkema
+	@version 0.9 2023/01/05
+    license: CC BY-NC-SA
+*/
 #include <camera_info_manager/camera_info_manager.h>
 #include <depthai_ros_msgs/SpatialDetectionArray.h>
 #include <depthai_ros_msgs/SpatialDetection.h>
