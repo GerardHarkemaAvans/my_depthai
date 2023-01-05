@@ -62,6 +62,7 @@ class detection_displayer:
                 x2 = detection.bbox.center.x + (detection.bbox.size_x / 2)
                 y2 = detection.bbox.center.y + (detection.bbox.size_y / 2)
 
+
                 class_index = detection.results[0].id
                 class_color = self.colors[int(class_index)].strip("#")
                 class_color = tuple(int(class_color[i:i + 2], 16) for i in (0, 2, 4))

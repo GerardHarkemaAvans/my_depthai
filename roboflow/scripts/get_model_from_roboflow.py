@@ -3,6 +3,7 @@
 	Purpose: reads a model from roboflow
 	@author Gerard Harkema
 	@version 0.9 2023/01/05
+    license: CC BY-NC-SA
 '''
 
 import requests

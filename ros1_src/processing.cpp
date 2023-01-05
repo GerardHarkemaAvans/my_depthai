@@ -3,7 +3,7 @@
 	Purpose: ROS Implementation for OAK-D camera nn detection
 	@author Gerard Harkema
 	@version 0.9 2023/01/05
-    license: CC BY-NC-SA
+    License: CC BY-NC-SA
 */
 #include <camera_info_manager/camera_info_manager.h>
 #include <depthai_ros_msgs/SpatialDetectionArray.h>
@@ -57,6 +57,7 @@ void AbortDetectionTask(){
 std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<float>> tensors, int num_anchor_boxes, int number_of_classes, float confidence_threshold, float scale_x, float scale_y);
 void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dectection_publisher, int seq_number);
 std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors);
+//std::vector<PREDECTION> nonMaximumSuppressionSimpleV2(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors);
 
 void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                     std::string topic_name,
@@ -181,7 +182,7 @@ void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dec
         object_hypothesis.score = predection->score;
         detection.results.push_back(object_hypothesis);
         detection_array.detections.push_back(detection);
-        break;
+
 
     }
 
@@ -199,10 +200,13 @@ std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<
     for(tensor = tensors.begin(); tensor != tensors.end(); tensor++){
         PREDECTION predection;
 
-        predection.box.x = (float &)tensor[0] * scale_x;
-        predection.box.y = (float &)tensor[1] * scale_y;
-        predection.box.width = (float &)tensor[2] * scale_x;
-        predection.box.height = (float &)tensor[3] * scale_y;
+        //predictions.append(Prediction((det[0]+det[2])/2, (det[1]+det[3])/2, det[2]-det[0], det[3]-det[1], det[5], det[4], det[6]))
+
+
+        predection.box.x = ((float &)tensor[0] + (float &)tensor[2])/2 * scale_x;
+        predection.box.y = ((float &)tensor[1] + (float &)tensor[3])/2 * scale_y;
+        predection.box.width = ((float &)tensor[2] - (float &)tensor[0]) * scale_x;
+        predection.box.height = ((float &)tensor[3] + (float &)tensor[1])* scale_y;
 
         int class_number = 0;
         float max_conf = 0;
@@ -222,12 +226,18 @@ std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<
     if(tensors[i][4] >= confidence_threshold){
 
       PREDECTION predection;
-
+      //scale_x = scale_y;
+#if 1
       predection.box.x = tensors[i][0] * scale_x;
       predection.box.y = tensors[i][1] * scale_y;
-      predection.box.width = tensors[i][2] * scale_x;
+      predection.box.width = tensors[i][2] * scale_y;
       predection.box.height = tensors[i][3] * scale_y;
-
+#else
+      predection.box.x = (tensors[i][0] + tensors[i][2])/2 * scale_x;
+      predection.box.y = (tensors[i][1] + tensors[i][3])/2 * scale_y;
+      predection.box.width = (tensors[i][2] - tensors[i][0]) * scale_x;
+      predection.box.height = (tensors[i][3] - tensors[i][1]) * scale_y;
+#endif
       int class_number = 0;
       float max_conf = 0;
       for(int j = 0; j < number_of_classes; j++){
@@ -248,6 +258,7 @@ std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<
 
 std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors){
 
+    //return input_predections;
 
     std::vector<PREDECTION>::iterator predection;
     std::vector<PREDECTION> predections;
@@ -313,3 +324,75 @@ std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input
     return predections;
 
 }
+#if 0
+std::vector<PREDECTION> nonMaximumSuppressionSimpleV2(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors){
+
+
+    std::vector<PREDECTION>::iterator predection;
+    std::vector<PREDECTION> predections;
+    std::vector<cv::Rect> srcRects;
+    std::vector<cv::Rect> resRects;
+
+
+    for(predection = input_predections.begin(); predection != input_predections.end(); predection++){
+        srcRects.push_back(predection->box);
+
+    }
+    resRects.clear();
+
+    const size_t size = srcRects.size();
+    if (!size)
+        return;
+
+    assert(srcRects.size() == scores.size());
+
+    // Sort the bounding boxes by the detection score
+    std::multimap<float, size_t> idxs;
+    for (size_t i = 0; i < size; ++i)
+    {
+        idxs.emplace(scores[i], i);
+    }
+
+    // keep looping while some indexes still remain in the indexes list
+    while (idxs.size() > 0)
+    {
+        // grab the last rectangle
+        auto lastElem = --std::end(idxs);
+        const cv::Rect& rect1 = srcRects[lastElem->second];
+
+        int neigborsCount = 0;
+        float scoresSum = lastElem->first;
+
+        idxs.erase(lastElem);
+
+        for (auto pos = std::begin(idxs); pos != std::end(idxs); )
+        {
+            // grab the current rectangle
+            const cv::Rect& rect2 = srcRects[pos->second];
+
+            float intArea = static_cast<float>((rect1 & rect2).area());
+            float unionArea = rect1.area() + rect2.area() - intArea;
+            float overlap = intArea / unionArea;
+
+            // if there is sufficient overlap, suppress the current bounding box
+            if (overlap > thresh)
+            {
+                scoresSum += pos->first;
+                pos = idxs.erase(pos);
+                ++neigborsCount;
+            }
+            else
+            {
+                ++pos;
+            }
+        }
+        if (neigborsCount >= neighbors && scoresSum >= minScoresSum){
+            resRects.push_back(rect1);
+            predections.push_back(predection);
+
+        }
+    }
+    return predections;
+
+}
+#endif

@@ -266,7 +266,7 @@ int main(int argc, char** argv) {
     double dotProjectormA, floodLightmA;
     float confidenceThreshold = 0.5;
     float overlapThreshold = 0.5;
-    int boxNeighbors = 1;
+    int boxNeighbors;
     std::string nnName(BLOB_NAME), nnConfig(BLOB_NAME);  // Set your blob name for the model here
 
     badParams += !pnh.getParam("mxId", mxId);

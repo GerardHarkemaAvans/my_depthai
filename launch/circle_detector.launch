@@ -31,8 +31,13 @@
     <arg name="stereo_fps"            default="15"  />
     <arg name="confidence"            default="200" />
     <arg name="LRchecktresh"          default="5"   />
+<!--
     <arg name="monoResolution"        default="720p"/>
-
+-->
+    <arg name="monoResolution"        default="400p"/>
+<!--
+    <arg name="rgbResolution"           default="1080p"/>
+-->
     <arg name="rgbResolution"           default="1080p"/>
     <arg name="rgbScaleNumerator"       default="2"/>
     <arg name="rgbScaleDinominator"     default="3"/>
