@@ -69,12 +69,15 @@ def w_np_non_max_suppression(np_prediction, num_classes, conf_thres=0.5, nms_thr
     return batch_predictions
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
-    if ratio_pad is None: 
+    if ratio_pad is None:
         gain = max(img1_shape) / max(img0_shape)
-        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2 
+        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2
     else:
         gain = ratio_pad[0][0]
         pad = ratio_pad[1]
+
+    print(gain)
+    print(pad)
 
     coords[0] -= pad[0]
     coords[2] -= pad[0]

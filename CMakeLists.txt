@@ -191,6 +191,24 @@ elseif( CATKIN_DEVEL_PREFIX OR CATKIN_BUILD_BINARY_PACKAGE )
 
   endmacro()
 
+  macro(dai_add_node3 node_name node_src src_file2 src_file3)
+      add_executable("${node_name}" "${node_src}" "${src_file2}" "${src_file3}")
+
+      add_dependencies("${node_name}"
+        ${catkin_EXPORTED_TARGETS}
+        ${${PROJECT_NAME}_EXPORTED_TARGETS}
+      )
+
+      target_link_libraries("${node_name}"
+        ${catkin_LIBRARIES}
+        depthai::core
+        opencv_imgproc
+        opencv_highgui
+        jsoncpp
+      )
+
+  endmacro()
+
   ## Specify additional locations of header files
   ## Your package locations should be listed before other locations
   include_directories(
@@ -222,7 +240,7 @@ elseif( CATKIN_DEVEL_PREFIX OR CATKIN_BUILD_BINARY_PACKAGE )
 
   #dai_add_node(stereo_node ros1_src/stereo_publisher.cpp)
   #dai_add_node(yolov4_spatial_node ros1_src/yolov4_spatial_publisher.cpp)
-  dai_add_node2(stereo_inertial_roboflow_node ros1_src/stereo_inertial_roboflow_publisher.cpp ros1_src/processing.cpp)
+  dai_add_node3(stereo_inertial_roboflow_node ros1_src/stereo_inertial_roboflow_publisher.cpp ros1_src/processing.cpp ros1_src/pipe.cpp)
 
   #target_compile_definitions(mobilenet_node PRIVATE BLOB_NAME="${mobilenet_blob_name}")
   #target_compile_definitions(yolov4_spatial_node PRIVATE BLOB_NAME="${tiny_yolo_v4_blob_name}")

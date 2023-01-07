@@ -12,7 +12,7 @@ if __name__ == '__main__':
     while True:
         t0 = time.time()
         # The rf.detect() function runs the model inference
-        result, frame, raw_frame, depth = rf.detect(visualize=True)
+        result, frame, raw_frame, depth = rf.detect()
         predictions = result["predictions"]
         #{
         #    predictions:

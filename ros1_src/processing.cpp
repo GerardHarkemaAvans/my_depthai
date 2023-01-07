@@ -233,10 +233,10 @@ std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<
       predection.box.width = tensors[i][2] * scale_y;
       predection.box.height = tensors[i][3] * scale_y;
 #else
-      predection.box.x = (tensors[i][0] + tensors[i][2])/2 * scale_x;
-      predection.box.y = (tensors[i][1] + tensors[i][3])/2 * scale_y;
-      predection.box.width = (tensors[i][2] - tensors[i][0]) * scale_x;
-      predection.box.height = (tensors[i][3] - tensors[i][1]) * scale_y;
+      predection.box.x = (tensors[i][0] + tensors[i][2])/2;// * scale_x;
+      predection.box.y = (tensors[i][1] + tensors[i][3])/2;// * scale_y;
+      predection.box.width = (tensors[i][2] - tensors[i][0]);// * scale_y;
+      predection.box.height = (tensors[i][3] - tensors[i][1]);// * scale_y;
 #endif
       int class_number = 0;
       float max_conf = 0;
