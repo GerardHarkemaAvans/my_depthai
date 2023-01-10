@@ -11,7 +11,8 @@
 
 void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                     std::string topic_name,
-                    float scale_x, float scale_y,
+                    int output_image_width, int output_image_height,
+                    int nn_image_width, int nn_image_height,
                     std::vector<std::string> class_names,
                     float confidence_threshold,
                     float overlap_threshold,

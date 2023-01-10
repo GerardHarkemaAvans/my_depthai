@@ -40,6 +40,7 @@ if __name__ == '__main__':
         max_depth = np.amax(depth)
         cv2.imshow("depth", depth/max_depth)
         # displaying the video feed as successive frames
+        print(frame.shape)
         cv2.imshow("frame", frame)
 
         # how to close the OAK inference window / stop inference: CTRL+q or CTRL+c

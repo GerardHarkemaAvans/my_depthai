@@ -35,7 +35,7 @@
         <arg name="monoResolution"        default="720p"/>
     -->
         <arg name="monoResolution"        default="400p"/>
-        
+
     <arg name="rgbResolution"           default="1080p"/>
     <arg name="rgbScaleNumerator"       default="2"/>
     <arg name="rgbScaleDinominator"     default="3"/>
@@ -149,6 +149,9 @@
   <node  type="nn_detector_display.py" name="nnDetectorDisplay" pkg="my_depthai" output="screen">
       <param name="nnConfig"                 value="$(arg nnConfig)"/>
       <param name="resourceBaseFolder"       value="$(arg resourceBaseFolder)"/>
+<!--
+      <remap from="image_in" to="/stereo_inertial_roboflow_publisher/color/preview/image"/>
+-->
       <remap from="image_in" to="/stereo_inertial_roboflow_publisher/color/image"/>
       <remap from="image_out" to="/stereo_inertial_roboflow_publisher/color/detections"/>
       <remap from="detections" to="/oak_rgb_camera_optical_frame/color/detections"/>

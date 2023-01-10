@@ -287,7 +287,6 @@ int main(int argc, char** argv) {
 
     if(enableNeuralNetworkDetection) {
         auto previewQueue = device->getOutputQueue("preview", 30, false);
-        auto detectionQueue = device->getOutputQueue("detections", 30, false);
         auto previewCameraInfo = rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, previewWidth, previewHeight);
 
         dai::rosBridge::BridgePublisher<sensor_msgs::Image, dai::ImgFrame> previewPublish(
@@ -300,21 +299,38 @@ int main(int argc, char** argv) {
             "color/preview");
         previewPublish.addPublisherCallback();
 
+#define DETECTION_THREAD        1
+#if DETECTION_THREAD
 
+std::thread detection_task(DetectionTask,
+                            device->getOutputQueue("detections", 30, false),
+                            tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
+                            image_width,  image_height,
+                            nn_width, nn_height,
+                            class_names,
+                            confidenceThreshold,
+                            overlapThreshold,
+                            boxNeighbors);
 
-        std::thread detection_task(DetectionTask,
-                                    device->getOutputQueue("detections", 30, false),
-                                    tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
-                                    (float)image_width / (float)nn_width,
-                                    (float)image_height / (float)nn_height,
-                                    class_names,
-                                    confidenceThreshold,
-                                    overlapThreshold,
-                                    boxNeighbors);
+#else
 
+        auto detectionQueue = device->getOutputQueue("detections", 30, false);
+                                    dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 300, 300, false);
+                                    dai::rosBridge::BridgePublisher<vision_msgs::Detection2DArray, dai::ImgDetections> detectionPublish(
+                                        detectionQueue,
+                                        pnh,
+                                        std::string("color/detections"),
+                                        std::bind(&dai::rosBridge::ImgDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
+                                        30);
+
+                                    detectionPublish.addPublisherCallback();
+#endif
         ros::spin();
+
+#if DETECTION_THREAD
         AbortDetectionTask();
         detection_task.join();
+#endif
         return 0;
 
     }

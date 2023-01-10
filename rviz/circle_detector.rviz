@@ -4,10 +4,8 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /Global Options1
         - /DepthCloud1/Auto Size1
         - /RobotModelManipulator1/Links1
-        - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.4537205100059509
     Tree Height: 313
@@ -168,6 +166,10 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        circle_1:
+          Value: true
+        circle_2:
+          Value: true
         oak-d-base-frame:
           Value: false
         oak-d_frame:
@@ -188,8 +190,6 @@ Visualization Manager:
           Value: false
         oak_right_camera_optical_frame:
           Value: false
-        test:
-          Value: true
         world:
           Value: false
       Marker Scale: 0.10000000149011612
@@ -210,7 +210,9 @@ Visualization Manager:
                 {}
               oak_rgb_camera_frame:
                 oak_rgb_camera_optical_frame:
-                  test:
+                  circle_1:
+                    {}
+                  circle_2:
                     {}
               oak_right_camera_frame:
                 oak_right_camera_optical_frame:
@@ -321,18 +323,18 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.04194023460149765
-        Y: -0.48439842462539673
-        Z: 0.2423681765794754
+        X: 0.18803614377975464
+        Y: 0.10433302819728851
+        Z: 0.2904093265533447
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.1503974199295044
+      Pitch: 0.3253973424434662
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.694028615951538
+      Yaw: 3.114027976989746
     Saved: ~
 Window Geometry:
   Camera:

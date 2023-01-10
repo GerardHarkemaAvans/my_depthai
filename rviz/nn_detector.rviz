@@ -162,56 +162,19 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/TF
-      Enabled: true
+      Enabled: false
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        oak-d-base-frame:
-          Value: true
-        oak-d_frame:
-          Value: true
-        oak_imu_frame:
-          Value: true
-        oak_left_camera_frame:
-          Value: true
-        oak_left_camera_optical_frame:
-          Value: true
-        oak_model_origin:
-          Value: true
-        oak_rgb_camera_frame:
-          Value: true
-        oak_rgb_camera_optical_frame:
-          Value: true
-        oak_right_camera_frame:
-          Value: true
-        oak_right_camera_optical_frame:
-          Value: true
-        world:
-          Value: true
       Marker Scale: 0.10000000149011612
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        world:
-          oak-d-base-frame:
-            oak-d_frame:
-              oak_imu_frame:
-                {}
-              oak_left_camera_frame:
-                oak_left_camera_optical_frame:
-                  {}
-              oak_model_origin:
-                {}
-              oak_rgb_camera_frame:
-                oak_rgb_camera_optical_frame:
-                  {}
-              oak_right_camera_frame:
-                oak_right_camera_optical_frame:
-                  {}
+        {}
       Update Interval: 0
-      Value: true
+      Value: false
     - Alpha: 1
       Class: rviz/RobotModel
       Collision Enabled: false

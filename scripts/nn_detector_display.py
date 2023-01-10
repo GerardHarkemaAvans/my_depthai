@@ -10,7 +10,6 @@
 from __future__ import print_function
 
 import roslib
-#roslib.load_manifest('my_package')
 import sys
 import rospy
 import cv2
@@ -40,8 +39,8 @@ class detection_displayer:
         for color in colors:
             self.colors.append(colors[color])
 
-        rospy.loginfo(self.class_names)
-        rospy.loginfo(self.colors)
+        #rospy.loginfo(self.class_names)
+        #rospy.loginfo(self.colors)
 
 
         self.image_pub = rospy.Publisher("/image_out", Image, queue_size = 10)

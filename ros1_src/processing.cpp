@@ -54,14 +54,20 @@ void AbortDetectionTask(){
   AbortDetectionTaskFlag = true;
 }
 
-std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<float>> tensors, int num_anchor_boxes, int number_of_classes, float confidence_threshold, float scale_x, float scale_y);
+std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<float>> tensors,
+                                                        int num_anchor_boxes,
+                                                        int number_of_classes,
+                                                        float confidence_threshold,
+                                                        int output_image_width, int output_image_height,
+                                                        int nn_image_width, int nn_image_height);
 void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dectection_publisher, int seq_number);
 std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors);
 //std::vector<PREDECTION> nonMaximumSuppressionSimpleV2(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors);
 
 void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                     std::string topic_name,
-                    float scale_x, float scale_y,
+                    int output_image_width, int output_image_height,
+                    int nn_image_width, int nn_image_height,
                     std::vector<std::string> class_names,
                     float confidence_threshold,
                     float overlap_threshold,
@@ -142,8 +148,8 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                                                           num_anchor_boxes,
                                                           number_of_classes,
                                                           confidence_threshold,
-                                                          scale_x,
-                                                          scale_y);
+                                                          output_image_width, output_image_height,
+                                                          nn_image_width, nn_image_height);
 
 
             std::vector<PREDECTION> suspressed_predections;
@@ -153,7 +159,7 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
             publish_predections(suspressed_predections, dectection_publisher, seq_number++);
 
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(0));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
 }
@@ -183,77 +189,60 @@ void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dec
         detection.results.push_back(object_hypothesis);
         detection_array.detections.push_back(detection);
 
-
     }
 
     dectection_publisher.publish(detection_array);
 
 }
 
-std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<float>> tensors, int num_anchor_boxes,int number_of_classes, float confidence_threshold, float scale_x, float scale_y){
+std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<float>> tensors,
+                                                        int num_anchor_boxes,
+                                                        int number_of_classes,
+                                                        float confidence_threshold,
+                                                        int output_image_width, int output_image_height,
+                                                        int nn_image_width, int nn_image_height){
+    std::vector<PREDECTION> predections;
 
-  std::vector<PREDECTION> predections;
-#if 0
-    std::vector<std::vector<float>>::iterator tensor;
-  //std::vector<PREDECTION>::iterator predection;
-
-    for(tensor = tensors.begin(); tensor != tensors.end(); tensor++){
-        PREDECTION predection;
-
-        //predictions.append(Prediction((det[0]+det[2])/2, (det[1]+det[3])/2, det[2]-det[0], det[3]-det[1], det[5], det[4], det[6]))
-
-
-        predection.box.x = ((float &)tensor[0] + (float &)tensor[2])/2 * scale_x;
-        predection.box.y = ((float &)tensor[1] + (float &)tensor[3])/2 * scale_y;
-        predection.box.width = ((float &)tensor[2] - (float &)tensor[0]) * scale_x;
-        predection.box.height = ((float &)tensor[3] + (float &)tensor[1])* scale_y;
-
-        int class_number = 0;
-        float max_conf = 0;
-        for(int j = 0; j < number_of_classes; j++){
-          if((float &)tensor[5+j] > max_conf){
-            max_conf = (float &)tensor[5+j];
-            class_number = j;
-          }
-        }
-        predection.score = (float &)tensor[4];
-        predection.class_number = (float)class_number;
-
-        predections.push_back(predection);
+    if((nn_image_width / nn_image_height) != 1){
+        std::cout << "Unable to scale detections, due wrong aspect ration imput to neural network" << std::endl;
+        return predections;
     }
-#else
-  for(int i = 0; i < num_anchor_boxes; i++){
-    if(tensors[i][4] >= confidence_threshold){
 
-      PREDECTION predection;
-      //scale_x = scale_y;
-#if 1
-      predection.box.x = tensors[i][0] * scale_x;
-      predection.box.y = tensors[i][1] * scale_y;
-      predection.box.width = tensors[i][2] * scale_y;
-      predection.box.height = tensors[i][3] * scale_y;
-#else
-      predection.box.x = (tensors[i][0] + tensors[i][2])/2;// * scale_x;
-      predection.box.y = (tensors[i][1] + tensors[i][3])/2;// * scale_y;
-      predection.box.width = (tensors[i][2] - tensors[i][0]);// * scale_y;
-      predection.box.height = (tensors[i][3] - tensors[i][1]);// * scale_y;
-#endif
-      int class_number = 0;
-      float max_conf = 0;
-      for(int j = 0; j < number_of_classes; j++){
-        if(tensors[i][5+j] > max_conf){
-          max_conf = tensors[i][5+j];
-          class_number = j;
+    for(int i = 0; i < num_anchor_boxes; i++){
+        if(tensors[i][4] >= confidence_threshold){
+
+            PREDECTION predection;
+
+            float scale = (float)output_image_height / (float)nn_image_height;
+            float pad = (output_image_width - (nn_image_width * scale)) / 2;
+
+            float box_x = tensors[i][0];
+            float box_y = tensors[i][1];
+            float box_width = tensors[i][2];
+            float box_height = tensors[i][3];
+
+            predection.box.x = (box_x * scale) + pad;
+            predection.box.y = box_y * scale;
+            predection.box.width = box_width * scale;
+            predection.box.height = box_height * scale;
+
+
+            int class_number = 0;
+            float max_conf = 0;
+            for(int j = 0; j < number_of_classes; j++){
+                if(tensors[i][5+j] > max_conf){
+                    max_conf = tensors[i][5+j];
+                    class_number = j;
+                }
+            }
+            predection.score = tensors[i][4];
+            predection.class_number = (float)class_number;
+
+            predections.push_back(predection);
         }
-      }
-      predection.score = tensors[i][4];
-      predection.class_number = (float)class_number;
-
-      predections.push_back(predection);
     }
-  }
-  #endif
-  return predections;
+
+    return predections;
 }
 
 std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors){

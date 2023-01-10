@@ -203,6 +203,7 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
         auto xoutPreview = pipeline.create<dai::node::XLinkOut>();
         xoutPreview->setStreamName("preview");
         xoutNN->setStreamName("detections");
+        camRgb->preview.link(xoutPreview->input);
 
         NeuralNetworkDetectionNetwork->setBlobPath(nnPath);
 
@@ -228,6 +229,6 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
     stereo->depth.link(xoutDepth->input);
 
     imu->out.link(xoutImu->input);
-    std::cout << stereoWidth << " " << stereoHeight << " " << rgbWidth << " " << rgbHeight << std::endl;
+    //std::cout << stereoWidth << " " << stereoHeight << " " << rgbWidth << " " << rgbHeight << std::endl;
     return std::make_tuple(pipeline, stereoWidth, stereoHeight);
 }
