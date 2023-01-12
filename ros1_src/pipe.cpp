@@ -215,6 +215,33 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
         //self.cam_rgb.preview.link(self.detection_nn.input)
 
 
+        auto spatialDataCalculator = pipeline.create<dai::node::SpatialLocationCalculator>();
+
+        auto xoutSpatialData = pipeline.create<dai::node::XLinkOut>();
+        auto xinSpatialCalcConfig = pipeline.create<dai::node::XLinkIn>();
+
+        xoutSpatialData->setStreamName("spatialData");
+        xinSpatialCalcConfig->setStreamName("spatialCalcConfig");
+
+        // Config
+        dai::Point2f topLeft(0.4f, 0.4f);
+        dai::Point2f bottomRight(0.6f, 0.6f);
+
+        dai::SpatialLocationCalculatorConfigData config;
+        config.depthThresholds.lowerThreshold = 100;
+        config.depthThresholds.upperThreshold = 10000;
+        config.roi = dai::Rect(topLeft, bottomRight);
+
+        spatialDataCalculator->inputConfig.setWaitForMessage(false);
+        spatialDataCalculator->initialConfig.addROI(config);
+
+        spatialDataCalculator->passthroughDepth.link(xoutDepth->input);
+        stereo->depth.link(spatialDataCalculator->inputDepth);
+
+        spatialDataCalculator->out.link(xoutSpatialData->input);
+        xinSpatialCalcConfig->out.link(spatialDataCalculator->inputConfig);
+
+
     }
 
     stereoWidth = rgbWidth;

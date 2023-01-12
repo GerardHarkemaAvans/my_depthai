@@ -303,7 +303,10 @@ int main(int argc, char** argv) {
 #if DETECTION_THREAD
 
 std::thread detection_task(DetectionTask,
-                            device->getOutputQueue("detections", 30, false),
+                            device,
+                            "detections",
+                            "spatialData",
+                            "spatialCalcConfig",
                             tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
                             image_width,  image_height,
                             nn_width, nn_height,

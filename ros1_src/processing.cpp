@@ -45,6 +45,9 @@ typedef struct{
   cv::Rect box;
   float score;
   int class_number;
+  float x;
+  float y;
+  float z;
 }PREDECTION;
 
 
@@ -63,8 +66,15 @@ std::vector<PREDECTION> filter_and_classificate_tensors(std::vector<std::vector<
 void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dectection_publisher, int seq_number);
 std::vector<PREDECTION> nonMaximumSuppressionSimple(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors);
 //std::vector<PREDECTION> nonMaximumSuppressionSimpleV2(std::vector<PREDECTION>input_predections, float overlap_threshold, int box_neighbors);
+void configSpatialCalculations(std::shared_ptr<dai::Device> device,
+                               std::string spatialCalcConfigInQueueName,
+                               std::vector<PREDECTION> predections,
+                               int output_image_width, int output_image_height);
 
-void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
+void DetectionTask( std::shared_ptr<dai::Device> device,
+                    std::string nnDataMessageQueueName,
+                    std::string spatialCalcQueueName,
+                    std::string spatialCalcConfigInQueueName,
                     std::string topic_name,
                     int output_image_width, int output_image_height,
                     int nn_image_width, int nn_image_height,
@@ -82,36 +92,41 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
     ros::NodeHandle n;
     ros::Publisher dectection_publisher = n.advertise<depthai_ros_msgs::SpatialDetectionArray>(topic_name, 1000);
 
+    auto spatialCalcQueue = device->getOutputQueue(spatialCalcQueueName, 8, false);
+    auto spatialCalcConfigInQueue = device->getInputQueue(spatialCalcConfigInQueueName);
+    auto nnDataMessageQueue =device->getOutputQueue(nnDataMessageQueueName, 30, false);
+
+
     int number_of_classes = class_names.size();
 
     while(!AbortDetectionTaskFlag){
 
-        auto daiDataPtr = daiMessageQueue->tryGet<dai::NNData>();
+        auto nnDataPtr = nnDataMessageQueue->tryGet<dai::NNData>();
 
-        if(daiDataPtr != nullptr) {
+        if(nnDataPtr != nullptr) {
 
             if(display_info){
 
                   std::cout << "Layer names: ";
-                  for(auto val : daiDataPtr->getAllLayerNames()) {
+                  for(auto val : nnDataPtr->getAllLayerNames()) {
                       std::cout << val << ", ";
                   }
                   std::cout << std::endl;
 
-                  auto rimestamp = daiDataPtr->getTimestamp();
-                  auto devive_timestamp = daiDataPtr->getTimestampDevice();
+                  auto rimestamp = nnDataPtr->getTimestamp();
+                  auto devive_timestamp = nnDataPtr->getTimestampDevice();
 
-                  std::cout << "NNData size: " << daiDataPtr->getData().size() << std::endl;
+                  std::cout << "NNData size: " << nnDataPtr->getData().size() << std::endl;
                   std::cout << "FP16 values: ";
-                  for(auto val : daiDataPtr->getLayerFp16("output")) {
+                  for(auto val : nnDataPtr->getLayerFp16("output")) {
                       //std::cout << std::to_string(val) << "x ";
                   }
                   std::cout << std::endl;
 
-                  //auto val = daiDataPtr->getLayerFp16("auto");
+                  //auto val = nnDataPtr->getLayerFp16("auto");
                   //std::cout << val << std::endl;
                   std::cout << "UINT8 values: ";
-                  for(auto val : daiDataPtr->getLayerUInt8("uint8")) {
+                  for(auto val : nnDataPtr->getLayerUInt8("uint8")) {
                       std::cout << std::to_string(val) << "x ";
                   }
                   std::cout << std::endl;
@@ -120,7 +135,7 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
 
 
 
-            auto in_nn_layer = daiDataPtr->getLayerFp16("output");
+            auto in_nn_layer = nnDataPtr->getLayerFp16("output");
             int num_anchor_boxes = in_nn_layer.size() / (number_of_classes + 5);
 
 
@@ -152,9 +167,36 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                                                           nn_image_width, nn_image_height);
 
 
-            std::vector<PREDECTION> suspressed_predections;
 
+            std::vector<PREDECTION> suspressed_predections;
             suspressed_predections = nonMaximumSuppressionSimple(predections, overlap_threshold, box_neighbors);
+
+            configSpatialCalculations(device,spatialCalcConfigInQueueName, suspressed_predections, output_image_width, output_image_height);
+
+            //std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+            if(suspressed_predections.size()){
+                std::vector<PREDECTION>::iterator predection;
+                predection = suspressed_predections.begin();
+
+                auto spatialData = spatialCalcQueue->get<dai::SpatialLocationCalculatorData>()->getSpatialLocations();
+                if(spatialData.size()){
+                    for(auto depthData : spatialData) {
+                        predection->x = depthData.spatialCoordinates.x / 1000.0;
+                        predection->y = depthData.spatialCoordinates.y / 1000.0;
+                        predection->z = depthData.spatialCoordinates.z / 1000.0;
+
+                        #if 0
+                        std::cout << "X: " << (int)depthData.spatialCoordinates.x << " mm" << std::endl;
+                        std::cout << "Y: " << (int)depthData.spatialCoordinates.y << " mm" << std::endl;
+                        std::cout << "Z: " << (int)depthData.spatialCoordinates.z << " mm" << std::endl;
+                        #endif
+                        predection++;
+                        if(predection == suspressed_predections.end()) break;
+                    }
+
+                }
+            }
 
             publish_predections(suspressed_predections, dectection_publisher, seq_number++);
 
@@ -162,6 +204,42 @@ void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
+}
+
+void configSpatialCalculations(std::shared_ptr<dai::Device> device,
+                               std::string spatialCalcConfigInQueueName,
+                               std::vector<PREDECTION> predections,
+                               int output_image_width, int output_image_height){
+
+
+    if(predections.size()){
+        auto spatialCalcConfigInQueue = device->getInputQueue(spatialCalcConfigInQueueName);
+
+
+        dai::SpatialLocationCalculatorConfig cfg;
+        dai::SpatialLocationCalculatorConfigData config;
+        config.depthThresholds.lowerThreshold = 100;
+        config.depthThresholds.upperThreshold = 10000;
+
+        float xmin;
+        float ymin;
+        float xmax;
+        float ymax;
+
+        for(auto predection : predections){
+            xmin = (float)(predection.box.x-predection.box.width)/(float)output_image_width;
+            ymin = (float)(predection.box.y-predection.box.height)/(float)output_image_height;
+            xmax = (float)(predection.box.x+predection.box.width)/(float)output_image_width;
+            ymax = (float)(predection.box.y+predection.box.height)/(float)output_image_height;
+            dai::Point2f topLeft(xmin, ymin);
+            dai::Point2f bottomRight(xmax, ymax);
+
+            config.roi = dai::Rect(topLeft, bottomRight);
+            config.calculationAlgorithm = dai::SpatialLocationCalculatorAlgorithm::MIN;
+            cfg.addROI(config);
+        }
+        spatialCalcConfigInQueue->send(cfg);
+    }
 }
 
 void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dectection_publisher, int seq_number){
@@ -183,9 +261,15 @@ void publish_predections(std::vector<PREDECTION> predections, ros::Publisher dec
         detection.bbox.size_x = predection->box.width;
         detection.bbox.size_y = predection->box.height;
 
+        detection.position.x = predection->x;
+        detection.position.y = predection->y;
+        detection.position.z = predection->z;
 
         object_hypothesis.id = predection->class_number;
         object_hypothesis.score = predection->score;
+
+
+
         detection.results.push_back(object_hypothesis);
         detection_array.detections.push_back(detection);
 

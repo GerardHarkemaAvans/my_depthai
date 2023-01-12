@@ -9,7 +9,10 @@
 #ifndef PROCESSING
 #define PROCESSING
 
-void DetectionTask(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
+void DetectionTask(std::shared_ptr<dai::Device> device,
+                    std::string nnDataMessageQueueName,
+                    std::string spatialCalcQueueName,
+                    std::string spatialCalcConfigInQueueName,
                     std::string topic_name,
                     int output_image_width, int output_image_height,
                     int nn_image_width, int nn_image_height,

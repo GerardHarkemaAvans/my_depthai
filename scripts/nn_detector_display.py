@@ -60,6 +60,10 @@ class detection_displayer:
                 y1 = detection.bbox.center.y - (detection.bbox.size_y / 2)
                 x2 = detection.bbox.center.x + (detection.bbox.size_x / 2)
                 y2 = detection.bbox.center.y + (detection.bbox.size_y / 2)
+                #spatial detections
+                x = detection.position.x
+                y = detection.position.y
+                z = detection.position.z
 
 
                 class_index = detection.results[0].id
@@ -70,6 +74,12 @@ class detection_displayer:
 
                 text = '%s: %.2f%%' % (self.class_names[detection.results[0].id], detection.results[0].score * 100)
                 image = cv2.putText(self.image, text, (int(x1)+5, int(y2)-5), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)
+                text = 'x: %.3f m' % (x)
+                image = cv2.putText(self.image, text, (int(x1)+5, int(y2)+20), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)
+                text = 'y: %.3f m' % (y)
+                image = cv2.putText(self.image, text, (int(x1)+5, int(y2)+45), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)
+                text = 'z: %.3f m' % (z)
+                image = cv2.putText(self.image, text, (int(x1)+5, int(y2)+70), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)
 
             try:
                 #if(self.image):
