@@ -1,12 +1,13 @@
-#pip install requests
-#sudo apt update
-#sudo apt-get install ros-melodic-ros-numpy
-#sudo apt-get install ros-melodic-cv-bridge
-#sudo apt install libopencv-dev
+sudo apt update
+sudo apt-get install ros-melodic-ros-numpy
+sudo apt-get install ros-melodic-cv-bridge
+sudo apt install libopencv-dev
 
-git clone https://github.com/luxonis/depthai-ros.git ../../depthai-ros
+sudo wget -qO- https://raw.githubusercontent.com/luxonis/depthai-ros/main/install_dependencies.sh | sudo bash
 
+#git clone https://github.com/luxonis/depthai-ros.git ../../depthai-ros
 
+git clone https://github.com/GerardHarkemaAvans/my_depthai-ros.git ../../depthai-ros
 
 cd ../../..
 
