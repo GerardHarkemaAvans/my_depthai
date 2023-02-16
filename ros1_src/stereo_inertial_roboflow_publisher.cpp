@@ -142,6 +142,7 @@ int main(int argc, char** argv) {
 
         for(int i = 0; i < classes.size(); i++){
             class_names.push_back(classes[i].asString());
+            std::cout << classes[i].asString() << std::endl;
         }
     }
 

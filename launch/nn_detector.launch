@@ -53,8 +53,17 @@
     <arg name="enableRviz"            default="true"/>
 
     <arg name="enableNeuralNetworkDetection" default="true" />
-    <arg name="nnName"                 default="simplefruits_V1.blob"         />
-    <arg name="nnConfig"               default="simplefruits_V1.txt"         />
+
+    <arg name="yoloPyTorch"            default="false"/>
+
+    <!-- Network trainded by pyTorch -->
+    <arg name="nnName"                 default="SimpleFruitsv1iyolov5pytorch_openvino_2021.4_6shave.blob" if="$(eval arg('yoloPyTorch') == true)"      />
+    <arg name="nnConfig"               default="SimpleFruitsv1iyolov5pytorch.json" if="$(eval arg('yoloPyTorch') == true)"       />
+
+    <!-- network trainded by Roboflow -->
+    <arg name="nnName"                 default="simplefruits_V1.blob"  unless="$(eval arg('yoloPyTorch') == true)"       />
+    <arg name="nnConfig"               default="simplefruits_V1.txt"  unless="$(eval arg('yoloPyTorch') == true)"       />
+
     <arg name="resourceBaseFolder"     default="$(find my_depthai)/resources" />
     <arg name="confidenceThreshold"    default="0.5"/>
     <arg name="overlapThreshold"       default="0.3"/>

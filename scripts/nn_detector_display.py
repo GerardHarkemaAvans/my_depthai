@@ -73,6 +73,7 @@ class detection_displayer:
                 cv2.rectangle(self.image, (int(x1), int(y1)), (int(x2), int(y2)), class_color, 2)
 
                 text = '%s: %.2f%%' % (self.class_names[detection.results[0].id], detection.results[0].score * 100)
+                print(text)
                 image = cv2.putText(self.image, text, (int(x1)+5, int(y2)-5), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)
                 text = 'x: %.3f m' % (x)
                 image = cv2.putText(self.image, text, (int(x1)+5, int(y2)+20), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)
