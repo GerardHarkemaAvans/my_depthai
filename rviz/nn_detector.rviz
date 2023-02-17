@@ -7,6 +7,7 @@ Panels:
         - /DepthCloud1/Auto Size1
         - /RobotModelManipulator1/Links1
         - /TF1/Frames1
+        - /ProcessedImage1
       Splitter Ratio: 0.4537205100059509
     Tree Height: 230
   - Class: rviz/Selection
@@ -234,7 +235,7 @@ Visualization Manager:
       Visual Enabled: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /stereo_inertial_roboflow_publisher/color/detections
+      Image Topic: /stereo_inertial_roboflow_publisher/color/detections_image
       Max Value: 1
       Median window: 5
       Min Value: 0

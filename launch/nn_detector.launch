@@ -54,7 +54,7 @@
 
     <arg name="enableNeuralNetworkDetection" default="true" />
 
-    <arg name="yoloPyTorch"            default="false"/>
+    <arg name="yoloPyTorch"            default="true"/>
 
     <!-- Network trainded by pyTorch -->
     <arg name="nnName"                 default="SimpleFruitsv1iyolov5pytorch_openvino_2021.4_6shave.blob" if="$(eval arg('yoloPyTorch') == true)"      />
@@ -162,8 +162,8 @@
       <remap from="image_in" to="/stereo_inertial_roboflow_publisher/color/preview/image"/>
 -->
       <remap from="image_in" to="/stereo_inertial_roboflow_publisher/color/image"/>
-      <remap from="image_out" to="/stereo_inertial_roboflow_publisher/color/detections"/>
-      <remap from="detections" to="/oak_rgb_camera_optical_frame/color/detections"/>
+      <remap from="image_out" to="/stereo_inertial_roboflow_publisher/color/detections_image"/>
+      <remap from="detections" to="/stereo_inertial_roboflow_publisher/color/detections"/>
   </node>
 
 </launch>

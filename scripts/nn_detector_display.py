@@ -19,7 +19,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import sensor_msgs.point_cloud2 as pc2
 from depthai_ros_msgs.msg import SpatialDetectionArray
-import random as rng
+import random
 import json
 
 
@@ -31,16 +31,22 @@ class detection_displayer:
         self.display_image = False
 
 
+        self.colors = []
+        colors = []
         with open(config_file, 'r') as f:
             self.model_objects = json.loads(f.read())
-            self.class_names = self.model_objects["class_names"]
-            colors = self.model_objects["colors"]
-        self.colors = []
-        for color in colors:
-            self.colors.append(colors[color])
+            try:
+                self.class_names = self.model_objects["class_names"]
+                colors = self.model_objects["colors"]
+                for color in colors:
+                    self.colors.append(colors[color])
+            except:
+                self.class_names = self.model_objects["mappings"]["labels"]
+                for class_name in self.class_names:
+                    self.colors.append("#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]))
 
-        #rospy.loginfo(self.class_names)
-        #rospy.loginfo(self.colors)
+        rospy.loginfo(self.class_names)
+        rospy.loginfo(self.colors)
 
 
         self.image_pub = rospy.Publisher("/image_out", Image, queue_size = 10)
@@ -73,7 +79,7 @@ class detection_displayer:
                 cv2.rectangle(self.image, (int(x1), int(y1)), (int(x2), int(y2)), class_color, 2)
 
                 text = '%s: %.2f%%' % (self.class_names[detection.results[0].id], detection.results[0].score * 100)
-                print(text)
+                #print(text)
                 image = cv2.putText(self.image, text, (int(x1)+5, int(y2)-5), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)
                 text = 'x: %.3f m' % (x)
                 image = cv2.putText(self.image, text, (int(x1)+5, int(y2)+20), cv2.FONT_HERSHEY_SIMPLEX, 1, class_color, 2, cv2.LINE_AA)

@@ -24,5 +24,7 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
                                                    int previewWidth,
                                                    int previewHeight,
                                                    std::string nnPath,
-                                                   std::string nnConfigPath);
+                                                   std::string nnConfigPath,
+                                                   float confidenceThreshold,
+                                                   bool yolo_nn_network);
 #endif

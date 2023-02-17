@@ -27,6 +27,7 @@
 #include <depthai_bridge/ImuConverter.hpp>
 //#include <depthai_bridge/NeuralNetworkDetectionConverter.hpp>
 #include <depthai_bridge/ImgDetectionConverter.hpp>
+#include <depthai_bridge/SpatialDetectionConverter.hpp>
 
 #include "depthai/depthai.hpp"
 
@@ -41,6 +42,7 @@ std::vector<std::string> usbStrings = {"UNKNOWN", "LOW", "FULL", "HIGH", "SUPER"
 int main(int argc, char** argv) {
     ros::init(argc, argv, "stereo_inertial_node");
     ros::NodeHandle pnh("~");
+
 
     std::string tfPrefix, mode, mxId, resourceBaseFolder, nnPath, nnConfigPath;
     std::string monoResolution = "720p", rgbResolution = "1080p";
@@ -126,6 +128,7 @@ int main(int argc, char** argv) {
 
     int nn_width, nn_height;
     std::vector<std::string> class_names;
+    bool yolo_nn_network = false;
     if(enableNeuralNetworkDetection){
         std::ifstream file(nnConfigPath);
         // json reader
@@ -134,15 +137,33 @@ int main(int argc, char** argv) {
         Json::Value completeJsonData;
         // reader reads the data and stores it in completeJsonData
         reader.parse(file, completeJsonData);
+        Json::Value classes;
 
-        nn_width = std::stoi(completeJsonData["environment"]["RESOLUTION"].asString());
-        nn_height = nn_width;
+        /* select nn network type */
+        if(!completeJsonData["environment"]["RESOLUTION"].isNull()){
+            /* Created by Roboflow */
+            yolo_nn_network = false;
+            nn_width = std::stoi(completeJsonData["environment"]["RESOLUTION"].asString());
+            nn_height = nn_width;
 
-        const Json::Value classes = completeJsonData["class_names"];
+            classes = completeJsonData["class_names"];
+            //std::cout << "not a yolo network" << std::endl;
+        }
+        else{
+            /* Created by pyTorch */
+            yolo_nn_network = true;
+            classes = completeJsonData["mappings"]["labels"];
+            //std::cout << "!!! yolo network !!!!" << std::endl;
+            const Json::Value nn_width_json = completeJsonData["nn_config"]["input_size"].asString();
+            nn_width = 416; // nog nie juist!!!!
+            nn_height = nn_width;
+        }
+
+
 
         for(int i = 0; i < classes.size(); i++){
             class_names.push_back(classes[i].asString());
-            std::cout << classes[i].asString() << std::endl;
+            //std::cout << classes[i].asString() << std::endl;
         }
     }
 
@@ -166,8 +187,15 @@ int main(int argc, char** argv) {
                                                         previewWidth,
                                                         previewHeight,
                                                         nnPath,
-                                                        nnConfigPath);
+                                                        nnConfigPath,
+                                                        confidenceThreshold,
+                                                        yolo_nn_network);
 
+    std::cout << image_width << std::endl;
+    std::cout << image_height << std::endl;
+
+    std::cout << previewWidth << std::endl;
+    std::cout << previewHeight << std::endl;
 
 
     std::shared_ptr<dai::Device> device;
@@ -286,6 +314,9 @@ int main(int argc, char** argv) {
         "color");
     rgbPublish.addPublisherCallback();
 
+    //ros::spin();
+    //return 0;
+
     if(enableNeuralNetworkDetection) {
         auto previewQueue = device->getOutputQueue("preview", 30, false);
         auto previewCameraInfo = rgbConverter.calibrationToCameraInfo(calibrationHandler, dai::CameraBoardSocket::RGB, previewWidth, previewHeight);
@@ -300,46 +331,48 @@ int main(int argc, char** argv) {
             "color/preview");
         previewPublish.addPublisherCallback();
 
-#define DETECTION_THREAD        1
-#if DETECTION_THREAD
+        std::unique_ptr<std::thread> detection_task_ptr;
 
-std::thread detection_task(DetectionTask,
-                            device,
-                            "detections",
-                            "spatialData",
-                            "spatialCalcConfig",
-                            tfPrefix + "_rgb_camera_optical_frame" + "/color/detections",
-                            image_width,  image_height,
-                            nn_width, nn_height,
-                            class_names,
-                            confidenceThreshold,
-                            overlapThreshold,
-                            boxNeighbors);
+        if(yolo_nn_network){
 
-#else
+            auto detectionQueue = device->getOutputQueue("detections", 30, false);
 
-        auto detectionQueue = device->getOutputQueue("detections", 30, false);
-                                    dai::rosBridge::ImgDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 300, 300, false);
-                                    dai::rosBridge::BridgePublisher<vision_msgs::Detection2DArray, dai::ImgDetections> detectionPublish(
-                                        detectionQueue,
-                                        pnh,
-                                        std::string("color/detections"),
-                                        std::bind(&dai::rosBridge::ImgDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
-                                        30);
+            //dai::rosBridge::SpatialDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 416, 416, false);
+            dai::rosBridge::SpatialDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", image_height, image_height, false);
+            dai::rosBridge::BridgePublisher<depthai_ros_msgs::SpatialDetectionArray, dai::SpatialImgDetections> detectionPublish(
+                detectionQueue,
+                pnh,
+                std::string("color/detections"),
+                std::bind(&dai::rosBridge::SpatialDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
+                30);
 
-                                    detectionPublish.addPublisherCallback();
-#endif
-        ros::spin();
+            detectionPublish.addPublisherCallback();
 
-#if DETECTION_THREAD
-        AbortDetectionTask();
-        detection_task.join();
-#endif
-        return 0;
+            ros::spin();
+            return 0;
 
+        }
+        else{
+            std::thread detection_task(DetectionTask,
+                                        device,
+                                        "detections",
+                                        "spatialData",
+                                        "spatialCalcConfig",
+                                        pnh.getNamespace() + "/color/detections",
+                                        image_width,  image_height,
+                                        nn_width, nn_height,
+                                        class_names,
+                                        confidenceThreshold,
+                                        overlapThreshold,
+                                        boxNeighbors);
+            ros::spin();
+            AbortDetectionTask();
+            detection_task.join();
+        }
     }
-    ros::spin();
-
-
+    else{
+        ros::spin();
+        return 0;
+    }
     return 0;
 }

@@ -15,6 +15,7 @@
 #include <cassert> // assert
 #include <bits/stdc++.h>
 
+#include "jsoncpp/json/json.h"
 
 #include "depthai/depthai.hpp"
 
@@ -35,7 +36,9 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
                                                    int previewWidth,
                                                    int previewHeight,
                                                    std::string nnPath,
-                                                   std::string nnConfigPath) {
+                                                   std::string nnConfigPath,
+                                                   float confidenceThreshold,
+                                                   bool yolo_nn_network) {
     dai::Pipeline pipeline;
     pipeline.setXLinkChunkSize(0);
     auto controlIn = pipeline.create<dai::node::XLinkIn>();
@@ -197,49 +200,129 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
         camRgb->setPreviewSize(previewWidth, previewHeight);
 
 
+        if(yolo_nn_network){
+            auto NeuralNetworkDetectionNetwork = pipeline.create<dai::node::YoloSpatialDetectionNetwork>();
+//            auto NeuralNetworkDetectionNetwork = pipeline.create<dai::node::NeuralNetwork>();
+            auto xoutNN = pipeline.create<dai::node::XLinkOut>();
+            xoutNN->setStreamName("detections");
 
-        auto NeuralNetworkDetectionNetwork = pipeline.create<dai::node::NeuralNetwork>();
-        auto xoutNN = pipeline.create<dai::node::XLinkOut>();
-        auto xoutPreview = pipeline.create<dai::node::XLinkOut>();
-        xoutPreview->setStreamName("preview");
-        xoutNN->setStreamName("detections");
-        camRgb->preview.link(xoutPreview->input);
+            auto xoutPreview = pipeline.create<dai::node::XLinkOut>();
+            xoutPreview->setStreamName("preview");
 
-        NeuralNetworkDetectionNetwork->setBlobPath(nnPath);
+            //auto xoutDepth = pipeline.create<dai::node::XLinkOut>();
+            //xoutDepth->setStreamName("depth");
 
+            camRgb->preview.link(xoutPreview->input);
 
-        // Link plugins CAM -> NN -> XLINK
-        camRgb->preview.link(NeuralNetworkDetectionNetwork->input);
-
-        NeuralNetworkDetectionNetwork->out.link(xoutNN->input);
-        //self.cam_rgb.preview.link(self.detection_nn.input)
+            NeuralNetworkDetectionNetwork->setBlobPath(nnPath);
 
 
-        auto spatialDataCalculator = pipeline.create<dai::node::SpatialLocationCalculator>();
+            std::ifstream file(nnConfigPath);
+            // json reader
+            Json::Reader reader;
+            // this will contain complete JSON data
+            Json::Value completeJsonData;
+            // reader reads the data and stores it in completeJsonData
+            reader.parse(file, completeJsonData);
+            //std::cout << completeJsonData << std::endl;
+            //std::cout << completeJsonData["nn_config"]["NN_specific_metadata"]["confidence_threshold"].asString() << std::endl;
 
-        auto xoutSpatialData = pipeline.create<dai::node::XLinkOut>();
-        auto xinSpatialCalcConfig = pipeline.create<dai::node::XLinkIn>();
+            NeuralNetworkDetectionNetwork->setConfidenceThreshold(confidenceThreshold);//std::stof(completeJsonData["nn_config"]["NN_specific_metadata"]["confidence_threshold"].asString()));
+            NeuralNetworkDetectionNetwork->input.setBlocking(false);
+            NeuralNetworkDetectionNetwork->setBoundingBoxScaleFactor(1);//0.5);
+            NeuralNetworkDetectionNetwork->setDepthLowerThreshold(100);
+            NeuralNetworkDetectionNetwork->setDepthUpperThreshold(5000);
 
-        xoutSpatialData->setStreamName("spatialData");
-        xinSpatialCalcConfig->setStreamName("spatialCalcConfig");
+            // yolo specific parameters
+            NeuralNetworkDetectionNetwork->setNumClasses(std::stoi(completeJsonData["nn_config"]["NN_specific_metadata"]["classes"].asString()));
+            NeuralNetworkDetectionNetwork->setCoordinateSize(std::stoi(completeJsonData["nn_config"]["NN_specific_metadata"]["coordinates"].asString()));
 
-        // Config
-        dai::Point2f topLeft(0.4f, 0.4f);
-        dai::Point2f bottomRight(0.6f, 0.6f);
 
-        dai::SpatialLocationCalculatorConfigData config;
-        config.depthThresholds.lowerThreshold = 100;
-        config.depthThresholds.upperThreshold = 10000;
-        config.roi = dai::Rect(topLeft, bottomRight);
+            /* extract anchors */
+            std::vector<float> anchors;
+            Json::Value anchors_json = completeJsonData["nn_config"]["NN_specific_metadata"]["anchors"];
 
-        spatialDataCalculator->inputConfig.setWaitForMessage(false);
-        spatialDataCalculator->initialConfig.addROI(config);
+            for(int i = 0; i < anchors_json.size(); i++){
+                anchors.push_back(std::stof(anchors_json[i].asString()));
+            }
+            NeuralNetworkDetectionNetwork->setAnchors(anchors);
 
-        spatialDataCalculator->passthroughDepth.link(xoutDepth->input);
-        stereo->depth.link(spatialDataCalculator->inputDepth);
+            /* extract anchor masks */
+            std::map<std::string, std::vector<int>> anchorMasks;
+            Json::Value anchors_mask_json = completeJsonData["nn_config"]["NN_specific_metadata"]["anchor_masks"];
 
-        spatialDataCalculator->out.link(xoutSpatialData->input);
-        xinSpatialCalcConfig->out.link(spatialDataCalculator->inputConfig);
+            for (auto const& id : anchors_mask_json.getMemberNames()) {
+                Json::Value anchors_mask_members_json = anchors_mask_json[id];
+                std::vector<int> mask_values;
+                for(int i = 0; i < anchors_mask_members_json.size(); i++){
+                    mask_values.push_back(std::stoi(anchors_mask_members_json[i].asString()));
+                }
+
+                anchorMasks[id] = mask_values;
+                mask_values.clear();
+            }
+            NeuralNetworkDetectionNetwork->setAnchorMasks(anchorMasks);
+
+            NeuralNetworkDetectionNetwork->setIouThreshold(std::stof(completeJsonData["nn_config"]["NN_specific_metadata"]["iou_threshold"].asString()));
+
+
+            stereo->depth.link(NeuralNetworkDetectionNetwork->inputDepth);
+
+            // Link plugins CAM -> NN -> XLINK
+            camRgb->preview.link(NeuralNetworkDetectionNetwork->input);
+
+            NeuralNetworkDetectionNetwork->out.link(xoutNN->input);
+            //self.cam_rgb.preview.link(self.detection_nn.input)
+            NeuralNetworkDetectionNetwork->passthroughDepth.link(xoutDepth->input);
+
+
+        }
+        else{
+            auto NeuralNetworkDetectionNetwork = pipeline.create<dai::node::NeuralNetwork>();
+            auto xoutNN = pipeline.create<dai::node::XLinkOut>();
+            auto xoutPreview = pipeline.create<dai::node::XLinkOut>();
+            xoutPreview->setStreamName("preview");
+            xoutNN->setStreamName("detections");
+            camRgb->preview.link(xoutPreview->input);
+
+            NeuralNetworkDetectionNetwork->setBlobPath(nnPath);
+
+
+            // Link plugins CAM -> NN -> XLINK
+            camRgb->preview.link(NeuralNetworkDetectionNetwork->input);
+
+            NeuralNetworkDetectionNetwork->out.link(xoutNN->input);
+            //self.cam_rgb.preview.link(self.detection_nn.input)
+
+
+            auto spatialDataCalculator = pipeline.create<dai::node::SpatialLocationCalculator>();
+
+            auto xoutSpatialData = pipeline.create<dai::node::XLinkOut>();
+            auto xinSpatialCalcConfig = pipeline.create<dai::node::XLinkIn>();
+
+            xoutSpatialData->setStreamName("spatialData");
+            xinSpatialCalcConfig->setStreamName("spatialCalcConfig");
+
+            // Config
+            dai::Point2f topLeft(0.4f, 0.4f);
+            dai::Point2f bottomRight(0.6f, 0.6f);
+
+            dai::SpatialLocationCalculatorConfigData config;
+            config.depthThresholds.lowerThreshold = 100;
+            config.depthThresholds.upperThreshold = 10000;
+            config.roi = dai::Rect(topLeft, bottomRight);
+
+            spatialDataCalculator->inputConfig.setWaitForMessage(false);
+            spatialDataCalculator->initialConfig.addROI(config);
+
+            spatialDataCalculator->passthroughDepth.link(xoutDepth->input);
+            stereo->depth.link(spatialDataCalculator->inputDepth);
+
+            spatialDataCalculator->out.link(xoutSpatialData->input);
+            xinSpatialCalcConfig->out.link(spatialDataCalculator->inputConfig);
+
+        }
+
 
 
     }

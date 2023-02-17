@@ -97,6 +97,8 @@ void DetectionTask( std::shared_ptr<dai::Device> device,
     auto nnDataMessageQueue =device->getOutputQueue(nnDataMessageQueueName, 30, false);
 
 
+std::cout << "detection task started" << std::endl;
+
     int number_of_classes = class_names.size();
 
     while(!AbortDetectionTaskFlag){
