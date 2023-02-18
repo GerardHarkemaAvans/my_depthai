@@ -266,6 +266,8 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
             NeuralNetworkDetectionNetwork->setIouThreshold(std::stof(completeJsonData["nn_config"]["NN_specific_metadata"]["iou_threshold"].asString()));
 
 
+            NeuralNetworkDetectionNetwork->setSpatialCalculationAlgorithm(dai::SpatialLocationCalculatorAlgorithm::MIN);
+
             stereo->depth.link(NeuralNetworkDetectionNetwork->inputDepth);
 
             // Link plugins CAM -> NN -> XLINK
