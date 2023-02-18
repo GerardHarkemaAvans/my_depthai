@@ -27,7 +27,7 @@
 #include <depthai_bridge/ImuConverter.hpp>
 //#include <depthai_bridge/NeuralNetworkDetectionConverter.hpp>
 #include <depthai_bridge/ImgDetectionConverter.hpp>
-#include <depthai_bridge/SpatialDetectionConverter.hpp>
+#include "SpatialDetectionConverterEx.hpp"
 
 #include "depthai/depthai.hpp"
 
@@ -191,13 +191,6 @@ int main(int argc, char** argv) {
                                                         confidenceThreshold,
                                                         yolo_nn_network);
 
-    std::cout << image_width << std::endl;
-    std::cout << image_height << std::endl;
-
-    std::cout << previewWidth << std::endl;
-    std::cout << previewHeight << std::endl;
-
-
     std::shared_ptr<dai::Device> device;
     std::vector<dai::DeviceInfo> availableDevices = dai::Device::getAllAvailableDevices();
 
@@ -338,12 +331,12 @@ int main(int argc, char** argv) {
             auto detectionQueue = device->getOutputQueue("detections", 30, false);
 
             //dai::rosBridge::SpatialDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", 416, 416, false);
-            dai::rosBridge::SpatialDetectionConverter detConverter(tfPrefix + "_rgb_camera_optical_frame", image_height, image_height, false);
+            dai::rosBridge::SpatialDetectionConverterEx detConverter(tfPrefix + "_rgb_camera_optical_frame", image_width, image_height, false);
             dai::rosBridge::BridgePublisher<depthai_ros_msgs::SpatialDetectionArray, dai::SpatialImgDetections> detectionPublish(
                 detectionQueue,
                 pnh,
                 std::string("color/detections"),
-                std::bind(&dai::rosBridge::SpatialDetectionConverter::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
+                std::bind(&dai::rosBridge::SpatialDetectionConverterEx::toRosMsg, &detConverter, std::placeholders::_1, std::placeholders::_2),
                 30);
 
             detectionPublish.addPublisherCallback();

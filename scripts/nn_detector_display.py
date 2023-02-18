@@ -45,8 +45,8 @@ class detection_displayer:
                 for class_name in self.class_names:
                     self.colors.append("#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]))
 
-        rospy.loginfo(self.class_names)
-        rospy.loginfo(self.colors)
+        #rospy.loginfo(self.class_names)
+        #rospy.loginfo(self.colors)
 
 
         self.image_pub = rospy.Publisher("/image_out", Image, queue_size = 10)

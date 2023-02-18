@@ -229,7 +229,7 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
 
             NeuralNetworkDetectionNetwork->setConfidenceThreshold(confidenceThreshold);//std::stof(completeJsonData["nn_config"]["NN_specific_metadata"]["confidence_threshold"].asString()));
             NeuralNetworkDetectionNetwork->input.setBlocking(false);
-            NeuralNetworkDetectionNetwork->setBoundingBoxScaleFactor(1);//0.5);
+            NeuralNetworkDetectionNetwork->setBoundingBoxScaleFactor(0.5);
             NeuralNetworkDetectionNetwork->setDepthLowerThreshold(100);
             NeuralNetworkDetectionNetwork->setDepthUpperThreshold(5000);
 
