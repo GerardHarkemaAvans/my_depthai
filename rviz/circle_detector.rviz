@@ -7,6 +7,7 @@ Panels:
         - /DepthCloud1/Auto Size1
         - /RobotModelManipulator1/Links1
         - /TF1/Frames1
+        - /ProcessedImage1
       Splitter Ratio: 0.4537205100059509
     Tree Height: 313
   - Class: rviz/Selection
@@ -56,7 +57,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: true
       Image Rendering: background and overlay
-      Image Topic: /stereo_inertial_roboflow_publisher/color/image
+      Image Topic: /stereo_inertial_nn_publisher/color/image
       Name: Camera
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -133,7 +134,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.009999999776482582
       Style: Flat Squares
-      Topic: /stereo_inertial_roboflow_publisher/stereo/points
+      Topic: /stereo_inertial_nn_publisher/stereo/points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -167,8 +168,6 @@ Visualization Manager:
       Frames:
         All Enabled: false
         circle_1:
-          Value: true
-        circle_2:
           Value: true
         oak-d-base-frame:
           Value: false
@@ -211,8 +210,6 @@ Visualization Manager:
               oak_rgb_camera_frame:
                 oak_rgb_camera_optical_frame:
                   circle_1:
-                    {}
-                  circle_2:
                     {}
               oak_right_camera_frame:
                 oak_right_camera_optical_frame:
@@ -278,7 +275,7 @@ Visualization Manager:
       Visual Enabled: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /stereo_inertial_roboflow_publisher/color/circles
+      Image Topic: /stereo_inertial_nn_publisher/color/circles
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -331,10 +328,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3253973424434662
+      Pitch: 0.32039734721183777
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.114027976989746
+      Yaw: 3.054028034210205
     Saved: ~
 Window Geometry:
   Camera:

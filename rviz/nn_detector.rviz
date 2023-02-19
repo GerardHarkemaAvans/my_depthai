@@ -7,7 +7,6 @@ Panels:
         - /DepthCloud1/Auto Size1
         - /RobotModelManipulator1/Links1
         - /TF1/Frames1
-        - /ProcessedImage1
       Splitter Ratio: 0.4537205100059509
     Tree Height: 230
   - Class: rviz/Selection
@@ -57,7 +56,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: true
       Image Rendering: background and overlay
-      Image Topic: /stereo_inertial_roboflow_publisher/color/image
+      Image Topic: /stereo_inertial_nn_publisher/color/image
       Name: Camera
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -134,7 +133,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.009999999776482582
       Style: Flat Squares
-      Topic: /stereo_inertial_roboflow_publisher/stereo/points
+      Topic: /stereo_inertial_nn_publisher/stereo/points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -235,7 +234,7 @@ Visualization Manager:
       Visual Enabled: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /stereo_inertial_roboflow_publisher/color/detections_image
+      Image Topic: /stereo_inertial_nn_publisher/color/detections_image
       Max Value: 1
       Median window: 5
       Min Value: 0

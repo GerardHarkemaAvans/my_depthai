@@ -85,7 +85,7 @@
     <node pkg="tf2_ros" type="static_transform_publisher" name="oak_broadcaster" args="0 0 0 0 0 0 1 world oak-d-base-frame" />
 
     <!-- launch-prefix="xterm -e gdb (add [- - args] without space) -->
-    <node name="stereo_inertial_roboflow_publisher" pkg="my_depthai" type="stereo_inertial_roboflow_node" output="screen" required="true">
+    <node name="stereo_inertial_nn_publisher" pkg="my_depthai" type="stereo_inertial_nn_node" output="screen" required="true">
         <param name="mxId"                  value="$(arg mxId)"/>
         <param name="usb2Mode"              value="$(arg usb2Mode)"/>
         <param name="poeMode"               value="$(arg poeMode)"/>
@@ -137,17 +137,17 @@
 
     <node pkg="nodelet" type="nodelet" name="depth_image_convertion_nodelet"
         args="load depth_image_proc/convert_metric nodelet_manager">
-        <remap from="image_raw" to="/stereo_inertial_roboflow_publisher/stereo/depth"/>
-        <remap from="image" to="/stereo_inertial_roboflow_publisher/stereo/image"/>
+        <remap from="image_raw" to="/stereo_inertial_nn_publisher/stereo/depth"/>
+        <remap from="image" to="/stereo_inertial_nn_publisher/stereo/image"/>
     </node>
 
     <node pkg="nodelet" type="nodelet" name="depth_image_to_rgb_pointcloud"
         args="load depth_image_proc/point_cloud_xyzrgb nodelet_manager">
         <param name="queue_size"          value="10"/>
-        <remap from="rgb/camera_info" to="/stereo_inertial_roboflow_publisher/color/camera_info"/>
-        <remap from="rgb/image_rect_color" to="/stereo_inertial_roboflow_publisher/color/image"/>
-        <remap from="depth_registered/image_rect" to="/stereo_inertial_roboflow_publisher/stereo/image"/>
-        <remap from="depth_registered/points" to="/stereo_inertial_roboflow_publisher/stereo/points"/>
+        <remap from="rgb/camera_info" to="/stereo_inertial_nn_publisher/color/camera_info"/>
+        <remap from="rgb/image_rect_color" to="/stereo_inertial_nn_publisher/color/image"/>
+        <remap from="depth_registered/image_rect" to="/stereo_inertial_nn_publisher/stereo/image"/>
+        <remap from="depth_registered/points" to="/stereo_inertial_nn_publisher/stereo/points"/>
     </node>
 
 
@@ -159,11 +159,11 @@
       <param name="nnConfig"                 value="$(arg nnConfig)"/>
       <param name="resourceBaseFolder"       value="$(arg resourceBaseFolder)"/>
 <!--
-      <remap from="image_in" to="/stereo_inertial_roboflow_publisher/color/preview/image"/>
+      <remap from="image_in" to="/stereo_inertial_nn_publisher/color/preview/image"/>
 -->
-      <remap from="image_in" to="/stereo_inertial_roboflow_publisher/color/image"/>
-      <remap from="image_out" to="/stereo_inertial_roboflow_publisher/color/detections_image"/>
-      <remap from="detections" to="/stereo_inertial_roboflow_publisher/color/detections"/>
+      <remap from="image_in" to="/stereo_inertial_nn_publisher/color/image"/>
+      <remap from="image_out" to="/stereo_inertial_nn_publisher/color/detections_image"/>
+      <remap from="detections" to="/stereo_inertial_nn_publisher/color/detections"/>
   </node>
 
 </launch>

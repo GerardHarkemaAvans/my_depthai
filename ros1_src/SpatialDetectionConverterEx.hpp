@@ -1,3 +1,11 @@
+/**
+	SpatialDetectionConverterEx.hpp
+	Purpose: ROS Implementation for OAK-D camera nn detection
+	@author Gerard Harkema
+	@version 0.9 2023/01/05
+    License: CC BY-NC-SA
+*/
+
 #pragma once
 
 #include <depthai_bridge/ImageConverter.hpp>

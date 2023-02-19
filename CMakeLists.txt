@@ -258,12 +258,12 @@ elseif( CATKIN_DEVEL_PREFIX OR CATKIN_BUILD_BINARY_PACKAGE )
 
   #dai_add_node(stereo_node ros1_src/stereo_publisher.cpp)
   #dai_add_node(yolov4_spatial_node ros1_src/yolov4_spatial_publisher.cpp)
-  dai_add_node4(stereo_inertial_roboflow_node ros1_src/stereo_inertial_roboflow_publisher.cpp ros1_src/processing.cpp ros1_src/pipe.cpp ros1_src/SpatialDetectionConverterEx.cpp)
+  dai_add_node4(stereo_inertial_nn_node ros1_src/stereo_inertial_nn_publisher.cpp ros1_src/processing.cpp ros1_src/pipe.cpp ros1_src/SpatialDetectionConverterEx.cpp)
 
   #target_compile_definitions(mobilenet_node PRIVATE BLOB_NAME="${mobilenet_blob_name}")
   #target_compile_definitions(yolov4_spatial_node PRIVATE BLOB_NAME="${tiny_yolo_v4_blob_name}")
 
-  target_compile_definitions(stereo_inertial_roboflow_node PRIVATE BLOB_NAME="${tiny_yolo_v4_blob_name}")
+  target_compile_definitions(stereo_inertial_nn_node PRIVATE BLOB_NAME="${tiny_yolo_v4_blob_name}")
 
   #catkin_install_python(PROGRAMS
   #ros1_scripts/markerPublisher.py
@@ -281,7 +281,7 @@ elseif( CATKIN_DEVEL_PREFIX OR CATKIN_BUILD_BINARY_PACKAGE )
 #          stereo_inertial_node
 #          stereo_node
 #          yolov4_spatial_node
-          stereo_inertial_roboflow_node
+          stereo_inertial_nn_node
           LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
           RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   )
