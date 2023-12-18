@@ -357,25 +357,22 @@ class WorkspaceDetector:
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
             print(e)
+        result = False
 
-        if 1:
-
-            result = False
-
-            result, marker_image = self.ws.draw_markers(cv_image)
-            if result:
-                try:
-                    self.pubMarkers.publish(self.bridge.cv2_to_imgmsg(marker_image, "bgr8"))
-                except CvBridgeError as e:
-                    print(e)
+        result, marker_image = self.ws.draw_markers(cv_image)
+        if result:
+            try:
+                self.pubMarkers.publish(self.bridge.cv2_to_imgmsg(marker_image, "bgr8"))
+            except CvBridgeError as e:
+                print(e)
 
 
-            result, workspace_image = self.ws.extract_workspace(cv_image)
-            if result:
-                try:
-                    self.pubWorkspace.publish(self.bridge.cv2_to_imgmsg(workspace_image, "bgr8"))
-                except CvBridgeError as e:
-                    print(e)
+        result, workspace_image = self.ws.extract_workspace(cv_image)
+        if result:
+            try:
+                self.pubWorkspace.publish(self.bridge.cv2_to_imgmsg(workspace_image, "bgr8"))
+            except CvBridgeError as e:
+                print(e)
     
 
 def main(args):
