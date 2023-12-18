@@ -35,16 +35,12 @@ class circle_detector:
 	def __init__(self):
 		self.display_image = False
 
+		self.bridge = CvBridge()
 		self.detected_circles = None
 
 		self.image_pub = rospy.Publisher("/image_out", Image, queue_size = 10)
-
-		self.bridge = CvBridge()
 		self.image_sub = rospy.Subscriber("/image_in", Image, self.image_callback)
-
 		self.pcl_sub = rospy.Subscriber("/pcl_in", PointCloud2, self.pcl_callback)
-
-
 
 
 	def pcl_callback(self, ptcloud_data):
@@ -111,8 +107,8 @@ class circle_detector:
 		#self.detected_circles = None
 
 
-	def image_callback(self,data):
-	#rospy.loginfo("image Callback")
+	def image_callback(self, data):
+		#rospy.loginfo("image Callback")
 		try:
 			cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
 		except CvBridgeError as e:
@@ -158,13 +154,13 @@ class circle_detector:
 			print(e)
 
 def main(args):
-		ic = circle_detector()
-		rospy.init_node('circle_detector', anonymous=True)
-		try:
-			rospy.spin()
-		except KeyboardInterrupt:
-			print("Shutting down")
-			#cv2.destroyAllWindows()
+	rospy.init_node('circle_detector', anonymous=True)
+	ic = circle_detector()
+	try:
+		rospy.spin()
+	except KeyboardInterrupt:
+		print("Shutting down")
+		#cv2.destroyAllWindows()
 
 if __name__ == '__main__':
 	main(sys.argv)

@@ -155,7 +155,7 @@
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find my_depthai)/rviz/nn_detector.rviz" />
   </group>
 
-  <node  type="nn_detector_display.py" name="nnDetectorDisplay" pkg="my_depthai" output="screen">
+  <node  type="publisch_bouding_boxes.py" name="publisch_bouding_boxes" pkg="my_depthai" output="screen">
       <param name="nnConfig"                 value="$(arg nnConfig)"/>
       <param name="resourceBaseFolder"       value="$(arg resourceBaseFolder)"/>
 <!--

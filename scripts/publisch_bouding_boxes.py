@@ -113,7 +113,7 @@ class detection_displayer:
 
 def main(args):
 
-    rospy.init_node('nn_detections_display', anonymous=True)
+    rospy.init_node('publisch_bouding_boxes', anonymous=True)
 
     node_name = rospy.get_name()
 

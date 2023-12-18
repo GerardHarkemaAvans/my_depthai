@@ -131,10 +131,16 @@
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find my_depthai)/rviz/circle_detector.rviz" />
   </group>
 
+
   <node  type="circle_detector.py" name="circleDetecor" pkg="my_depthai" output="screen">
       <remap from="image_in" to="/stereo_inertial_nn_publisher/color/image"/>
       <remap from="image_out" to="/stereo_inertial_nn_publisher/color/circles"/>
       <remap from="pcl_in" to="/stereo_inertial_nn_publisher/stereo/points"/>
+  </node>
+  <node  type="workspace_from_markers.py" name="workspace_from_markers" pkg="my_depthai" output="screen">
+      <remap from="image_in" to="/stereo_inertial_nn_publisher/color/image"/>
+      <remap from="image_markers_out" to="/stereo_inertial_nn_publisher/color/image_markers"/>
+      <remap from="image_workspace_out" to="/stereo_inertial_nn_publisher/color/image_workspace"/>
   </node>
 
 </launch>
