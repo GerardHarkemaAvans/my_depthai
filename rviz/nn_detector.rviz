@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /DepthCloud1/Auto Size1
         - /RobotModelManipulator1/Links1
+        - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.4537205100059509
     Tree Height: 230
@@ -67,6 +68,7 @@ Visualization Manager:
         Axes: true
         DepthCloud: true
         Grid: false
+        Marker: true
         PointCloud2: false
         ProcessedImage: true
         RobotModelCamera: true
@@ -162,19 +164,65 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/TF
-      Enabled: false
+      Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        apple_0:
+          Value: true
+        banana_0:
+          Value: true
+        oak-d-base-frame:
+          Value: false
+        oak-d_frame:
+          Value: false
+        oak_imu_frame:
+          Value: false
+        oak_left_camera_frame:
+          Value: false
+        oak_left_camera_optical_frame:
+          Value: false
+        oak_model_origin:
+          Value: false
+        oak_rgb_camera_frame:
+          Value: false
+        oak_rgb_camera_optical_frame:
+          Value: false
+        oak_right_camera_frame:
+          Value: false
+        oak_right_camera_optical_frame:
+          Value: false
+        world:
+          Value: false
       Marker Scale: 0.10000000149011612
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        world:
+          oak-d-base-frame:
+            oak-d_frame:
+              oak_imu_frame:
+                {}
+              oak_left_camera_frame:
+                oak_left_camera_optical_frame:
+                  {}
+              oak_model_origin:
+                {}
+              oak_rgb_camera_frame:
+                oak_rgb_camera_optical_frame:
+                  apple_0:
+                    {}
+                  banana_0:
+                    {}
+              oak_right_camera_frame:
+                oak_right_camera_optical_frame:
+                  {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Alpha: 1
       Class: rviz/RobotModel
       Collision Enabled: false
@@ -244,6 +292,14 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /color/ObjectText
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -272,7 +328,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.2699644565582275
+      Distance: 1.303808331489563
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -287,10 +343,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.1603974848985672
+      Pitch: 0.020397456362843513
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.1172120571136475
+      Yaw: 3.1122124195098877
     Saved: ~
 Window Geometry:
   Camera:

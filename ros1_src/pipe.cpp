@@ -80,6 +80,7 @@ std::tuple<dai::Pipeline, int, int> createPipeline(bool enableNeuralNetworkDetec
         ROS_ERROR("Invalid parameter. -> monoResolution: %s", stereoResolution.c_str());
         throw std::runtime_error("Invalid mono camera resolution.");
     }
+    std::cout << (int)monoResolution << std::endl;
 
     // MonoCamera
     monoLeft->setResolution(monoResolution);
